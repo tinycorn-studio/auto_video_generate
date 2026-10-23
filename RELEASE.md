@@ -36,4 +36,4 @@ Wavely dùng SemVer (`MAJOR.MINOR.PATCH`) và [Keep a Changelog](https://keepach
 
 ## Release đầu tiên
 
-Repo nguồn là [tinycorn-studio/auto_video_generate](https://github.com/tinycorn-studio/auto_video_generate). CI build app trên Windows x64, macOS Intel và Apple Silicon khi push/PR vào `main`; release workflow build installer theo tag. Không tạo tag phát hành đầu tiên cho tới khi các build CI thành công và checklist smoke test Windows/macOS được ghi nhận trong `PLAN.md`. Máy phát triển không cần có Rust nếu build chạy qua GitHub Actions.
+Repo nguồn là [tinycorn-studio/auto_video_generate](https://github.com/tinycorn-studio/auto_video_generate). CI build app trên Windows x64, macOS Intel và Apple Silicon khi push/PR vào `main`; release workflow build installer theo tag sau khi CI compile thành công. Run #1 đã compile thành công cả ba mục tiêu. Sau khi installer được tạo, hoàn tất smoke test Windows/macOS và ghi nhận trong `PLAN.md`. Máy phát triển không cần có Rust nếu build chạy qua GitHub Actions.

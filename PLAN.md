@@ -1,7 +1,7 @@
 # Kế hoạch AutoVideoGenerator
 
 **Cập nhật lần cuối:** 2026-10-23
-**Trạng thái hiện tại:** Đã có mã nguồn v0.1.0 cho giao diện và pipeline; build frontend đạt, native build Windows/macOS và benchmark còn chờ
+**Trạng thái hiện tại:** Mã nguồn v0.1.0 và CI compile đã đạt trên Windows x64, macOS Intel và Apple Silicon; đóng gói installer, kiểm tra FFmpeg thực tế và benchmark còn chờ
 **Mục tiêu:** Tạo ứng dụng desktop chạy trên Windows và macOS, ghép một file ghi âm với một ảnh dọc thành video có sóng âm đồng bộ.
 
 ## 1. Yêu cầu sản phẩm
@@ -77,7 +77,7 @@ Tên preset là gợi ý giao diện, không phải nhận diện thể loại b
 - Dùng Keep a Changelog; README và CHANGELOG cập nhật cùng feature. Release notes tiếng Việt được tạo từ mục tương ứng trong CHANGELOG.
 - Làm feature trên nhánh riêng, commit message một dòng tiếng Anh dạng mệnh lệnh; không commit installer/build output/media.
 - GitHub Actions chạy khi đẩy tag `vX.Y.Z`, xác nhận tag/version/changelog, build installer Windows x64 và DMG macOS Intel/Apple Silicon, rồi đính kèm chúng vào GitHub Release.
-- Repo GitHub `tinycorn-studio/auto_video_generate` đã được xác nhận là public, rỗng và có quyền push. CI build app trên Windows x64, macOS Intel và Apple Silicon khi push/PR vào `main`; release workflow tạo installer khi đẩy tag SemVer.
+- Repo GitHub `tinycorn-studio/auto_video_generate` đã kết nối với remote `origin`; CI build app trên Windows x64, macOS Intel và Apple Silicon khi push/PR vào `main`; release workflow tạo installer khi đẩy tag SemVer.
 
 ### Dung lượng cache Rust/Cargo
 
@@ -107,8 +107,8 @@ Các mốc được cập nhật tại đây cùng với thay đổi mã nguồn
 | **M2 · Prototype FFmpeg** | Đang triển khai · filtergraph đã có, chưa chạy | Ảnh + audio → MP4; đo line và Spectrum, giữ audio đúng thời lượng |
 | **M3 · Vỏ ứng dụng** | Đang triển khai · source đã có, Rust chưa compile | Màn hình chọn file, preview, lỗi FFmpeg, xuất, tiến độ và hủy tác vụ |
 | **M4 · Tối ưu và chất lượng** | Chưa bắt đầu | Đo thời gian/RAM/file size, kiểm tra đồng bộ âm thanh, màu sắc, crop và phát lại |
-| **M5 · Windows/macOS** | Đang chuẩn bị · CI và release workflow đã có, native build chưa được xác nhận | CI build app trên Windows, macOS Intel/Apple Silicon; sau đó tạo installer và checklist smoke test riêng theo phạm vi hỗ trợ |
-| **M6 · Bản dùng thử** | Đang triển khai · README/release guide đã có, chưa phát hành | Kiểm tra CI, hoàn thiện hướng dẫn, ghi nhận giới hạn, tạo release có installer sau khi smoke test |
+| **M5 · Windows/macOS** | Đang triển khai · CI compile đạt trên ba mục tiêu, installer chưa đóng gói | Tạo installer từ tag, sau đó ghi nhận checklist smoke test Windows/macOS Intel/Apple Silicon |
+| **M6 · Bản dùng thử** | Đang triển khai · source đã lên GitHub, release workflow đang chờ tag | Tạo release đầu có installer, kiểm tra asset/changelog, tiếp tục smoke test và ghi nhận giới hạn |
 
 ## 5. Tiêu chí nghiệm thu
 
@@ -187,6 +187,13 @@ Khi có thay đổi, cập nhật cả bảng mốc ở trên và nhật ký sau
 - Repo GitHub `tinycorn-studio/auto_video_generate` public và đang rỗng; CI build app trên Windows/macOS đã được thêm, release workflow tạo installer theo tag SemVer.
 - Chưa có native build pass, render video thật, benchmark hay smoke test trên máy macOS. Chưa tạo release.
 - **Tiếp theo:** đẩy source lên repo, theo dõi CI trên ba mục tiêu, sửa lỗi phát hiện được rồi mới tạo bản cài đặt thử.
+
+#### 2026-10-23 · CI build đa nền tảng
+
+- Đã push commit `fb5405b` lên `main` của [tinycorn-studio/auto_video_generate](https://github.com/tinycorn-studio/auto_video_generate).
+- [GitHub Actions run #1](https://github.com/tinycorn-studio/auto_video_generate/actions/runs/39890146126) thành công: Tauri compile đạt trên Windows x64, macOS Intel và macOS Apple Silicon.
+- Đây mới là xác nhận compile app; chưa đóng gói installer, chưa chạy app GUI/FFmpeg, chưa xuất video mẫu và chưa benchmark.
+- **Tiếp theo:** tạo tag `v0.1.0` để chạy release workflow, kiểm tra installers và release notes, sau đó thử thực tế FFmpeg trên Windows/macOS.
 
 ## 8. Tài liệu tham khảo
 

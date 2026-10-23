@@ -73,4 +73,4 @@ Phiên bản hiện tại: **0.1.0**. Chi tiết ở [CHANGELOG.md](CHANGELOG.md
 
 ## Tải về
 
-Installer được phát hành trong mục [GitHub Releases](https://github.com/tinycorn-studio/auto_video_generate/releases). Khi có tag SemVer mới, GitHub Actions sẽ build installer Windows x64 và DMG cho macOS Intel/Apple Silicon, rồi đính kèm vào release tương ứng. Bản hiện tại chưa có installer cho tới khi CI build và smoke test hoàn tất.
+Installer được phát hành trong mục [GitHub Releases](https://github.com/tinycorn-studio/auto_video_generate/releases). CI compile đã thành công trên Windows x64, macOS Intel và Apple Silicon; release workflow sẽ build installer khi có tag SemVer. Bản đầu chưa ký số/notarize và cần cài FFmpeg riêng. Cần thử thao tác render thực tế sau khi cài.
