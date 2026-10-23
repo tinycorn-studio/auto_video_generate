@@ -284,6 +284,7 @@ Khi có thay đổi, cập nhật cả bảng mốc ở trên và nhật ký sau
 - PR [#2](https://github.com/tinycorn-studio/auto_video_generate/pull/2) trên nhánh `feature/wave-layout-v0.4.0-preview`; commit `bf8dcc3` chứa mã nguồn đã build.
 - GitHub Actions run [#12](https://github.com/tinycorn-studio/auto_video_generate/actions/runs/39920781588) thành công trên Windows x64, macOS Intel và Apple Silicon. Artifact Windows ZIP có SHA-256 `22b8c85e4a9590b23e62934bd039b93b62740dc5ce49bc8927cc735b900111b`.
 - Installer NSIS `Wavely_0.4.0_x64-setup.exe` cài thành công (exit code 0) vào `%LOCALAPPDATA%\Wavely`; file `wavely.exe` báo ProductVersion/FileVersion 0.4.0 và app đã được mở.
+- FFmpeg runtime còn nguyên tại `%LOCALAPPDATA%\com.tinycorn.wavely\engine\ffmpeg.exe`; chạy `-version` xác nhận FFmpeg 9.0.2, không cần tải lại sau khi cập nhật app.
 - Chưa tạo tag hoặc GitHub Release công khai; bản 0.3.0 vẫn là release mới nhất. Rust/C++ toolchain trên máy không tham gia build installer.
 - **Tiếp theo:** người dùng kiểm tra preview sóng cân xứng, các vị trí/scale và xuất video thực tế; sau khi chốt mới merge PR và phát hành v0.4.0.
 
