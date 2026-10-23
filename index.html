@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f3f4f7" />
+    <meta name="description" content="Tạo video âm thanh dọc gọn nhẹ, xử lý hoàn toàn trên máy." />
+    <title>Wavely · Tạo video âm thanh</title>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="app-header">
+        <a class="brand" href="#" aria-label="Wavely">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M3 12h3l2.2-6 4.1 12 3.1-9 2.1 6H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+          </span>
+          <span>Wavely</span>
+        </a>
+        <div class="header-status" id="engineStatus" role="status">
+          <span class="status-dot"></span>
+          <span>Đang kiểm tra FFmpeg…</span>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <section class="editor-panel" aria-labelledby="pageTitle">
+          <div class="eyebrow">TẠO VIDEO · 01</div>
+          <h1 id="pageTitle">Một ảnh, một giai điệu</h1>
+          <p class="intro">Chọn ảnh nền và bản thu. Wavely sẽ ghép thành video dọc, đồng bộ sóng âm với nhạc.</p>
+
+          <div class="field-group">
+            <div class="field-heading">
+              <label for="imagePicker">Ảnh nền</label>
+              <span class="field-hint">Ưu tiên 9:16</span>
+            </div>
+            <button class="file-card" id="imagePicker" type="button">
+              <span class="file-icon image-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="3" width="17" height="18" rx="2.5" stroke="currentColor" stroke-width="1.7"/><circle cx="15.5" cy="8" r="1.6" fill="currentColor"/><path d="m5 17 4.7-4.7 3.1 3.1 2.3-2.3 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              <span class="file-copy">
+                <strong id="imageName">Chọn ảnh dọc</strong>
+                <span id="imageDetails">JPG, PNG hoặc WebP</span>
+              </span>
+              <span class="file-action" id="imageAction">Chọn ảnh</span>
+            </button>
+          </div>
+
+          <div class="field-group">
+            <div class="field-heading">
+              <label for="audioPicker">Âm thanh</label>
+              <span class="field-hint">Video theo độ dài bản thu</span>
+            </div>
+            <button class="file-card" id="audioPicker" type="button">
+              <span class="file-icon audio-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M9 18V5l12-2v13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6" cy="18" r="3" stroke="currentColor" stroke-width="1.8"/><circle cx="18" cy="16" r="3" stroke="currentColor" stroke-width="1.8"/></svg>
+              </span>
+              <span class="file-copy">
+                <strong id="audioName">Chọn file ghi âm</strong>
+                <span id="audioDetails">WAV, MP3, M4A, FLAC hoặc OGG</span>
+              </span>
+              <span class="file-action" id="audioAction">Chọn file</span>
+            </button>
+            <div class="audio-preview" id="audioPreview" hidden>
+              <button class="play-button" id="playAudio" type="button" aria-label="Phát thử âm thanh">▶</button>
+              <div class="audio-track-info"><span id="audioTrackName">—</span><span id="audioDuration">Đang đọc thời lượng…</span></div>
+              <div class="mini-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            </div>
+            <audio id="audioElement" preload="metadata"></audio>
+          </div>
+
+          <div class="field-group preset-group">
+            <div class="field-heading">
+              <label>Kiểu sóng âm</label>
+              <span class="field-hint">Chọn nhanh theo nội dung</span>
+            </div>
+            <div class="preset-list" role="radiogroup" aria-label="Kiểu sóng âm">
+              <button class="preset-card is-selected" type="button" role="radio" aria-checked="true" data-style="minimal">
+                <span class="preset-sample minimal-sample" aria-hidden="true"><svg viewBox="0 0 72 28"><path d="M1 14h8l4-7 5 14 6-17 5 18 6-12 5 8 6-11 5 14 5-8 5 5 5-10 5 6h5" /></svg></span>
+                <span class="preset-text"><strong>Tối giản</strong><span>Đường sóng mảnh · giọng nói, podcast</span></span>
+                <span class="radio-indicator" aria-hidden="true"></span>
+              </button>
+              <button class="preset-card" type="button" role="radio" aria-checked="false" data-style="spectrum">
+                <span class="preset-sample spectrum-sample" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                <span class="preset-text"><strong>Spectrum</strong><span>Cột tần số · nhạc, beat</span></span>
+                <span class="radio-indicator" aria-hidden="true"></span>
+              </button>
+            </div>
+            <p class="preset-note" id="presetNote">Sóng gọn, nhẹ và dễ nhìn trên nền ảnh.</p>
+          </div>
+
+          <div class="output-summary">
+            <span class="output-icon" aria-hidden="true">↗</span>
+            <span><strong>Đầu ra mặc định</strong><small>MP4 · 1080 × 1920 · 30 fps · H.264</small></span>
+            <span class="quality-badge">1080p</span>
+          </div>
+
+          <div class="render-area">
+            <button id="renderButton" class="render-button" type="button" disabled>
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 4.8v10.4L15.5 10 7 4.8Z" fill="currentColor" /></svg>
+              <span id="renderLabel">Tạo video</span>
+            </button>
+            <button id="cancelButton" class="cancel-button" type="button" hidden>Hủy xuất</button>
+            <div class="render-progress" id="renderProgress" hidden>
+              <div class="progress-top"><span id="progressMessage">Đang chuẩn bị…</span><span id="progressPercent">0%</span></div>
+              <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+            </div>
+            <p class="result-message" id="resultMessage" role="status"></p>
+          </div>
+        </section>
+
+        <aside class="preview-panel" aria-label="Xem trước video">
+          <div class="preview-heading"><span>XEM TRƯỚC VIDEO</span><span>1080 × 1920 · MP4</span></div>
+          <div class="video-frame" id="videoFrame">
+            <div class="preview-placeholder" id="previewPlaceholder" aria-hidden="true">
+              <div class="placeholder-orb"></div>
+              <div class="placeholder-horizon"></div>
+              <div class="placeholder-person"></div>
+            </div>
+            <img class="selected-image" id="selectedImage" alt="Ảnh nền xem trước" hidden />
+            <div class="video-shade"></div>
+            <div class="video-wave" id="videoWave" aria-hidden="true">
+              <svg viewBox="0 0 320 72" preserveAspectRatio="none"><path d="M2 36 C14 36 14 29 23 29 S34 47 44 47 55 21 66 21 77 39 87 39 97 33 106 33 116 52 127 52 139 26 149 26 158 42 170 42 180 28 190 28 201 47 211 47 222 33 231 33 243 38 252 38 264 22 274 22 285 44 294 44 305 35 318 35" /></svg>
+              <span class="spectrum-bars" hidden><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+            </div>
+            <div class="video-caption" id="videoCaption">Ảnh của bạn<br /><span>Sóng âm đồng bộ với bản thu</span></div>
+            <div class="preview-empty-label" id="previewEmptyLabel">Ảnh xem trước sẽ xuất hiện ở đây</div>
+          </div>
+          <div class="preview-description"><span class="preview-live-dot"></span><span>Ảnh và âm thanh được xử lý trên máy tính</span></div>
+          <div class="preview-footnote">Bản xem trước thể hiện bố cục và kiểu sóng. Chuyển động trong video xuất sẽ bám theo âm thanh thực.</div>
+        </aside>
+      </main>
+
+      <footer class="app-footer"><span>Wavely xử lý media hoàn toàn trên thiết bị của bạn.</span><span>v<span id="appVersion">0.1.0</span></span></footer>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

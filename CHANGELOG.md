@@ -1,0 +1,24 @@
+# Changelog
+
+Mọi thay đổi đáng chú ý của Wavely được ghi tại đây. Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/) và phiên bản theo [SemVer](https://semver.org/lang/vi/).
+
+## [Unreleased]
+
+## [0.1.0] - 2026-10-23
+
+### Added
+
+- Ứng dụng desktop Tauri cho Windows và macOS, giao diện tiếng Việt theo mẫu Tối giản đã duyệt.
+- Chọn ảnh nền và file ghi âm bằng hộp thoại hệ điều hành; xem trước ảnh, nghe thử và đọc thời lượng âm thanh.
+- Hai preset sóng âm: đường sóng Tối giản và cột tần số Spectrum.
+- Xuất MP4 dọc 1080 × 1920, 30 fps, H.264/AAC; có tiến độ, hủy tác vụ và dọn file tạm khi lỗi.
+- Quy trình GitHub Actions đóng gói installer Windows và DMG macOS khi đẩy tag SemVer.
+
+### Changed
+
+- Chốt `VERSION` làm nguồn version duy nhất; script đồng bộ metadata Tauri, Cargo và npm.
+- Ghi release notes tiếng Việt từ mục tương ứng trong CHANGELOG.
+- CI xác nhận build native trên Windows x64, macOS Intel và Apple Silicon trước khi phát hành installer.
+- Cần cài FFmpeg 6 trở lên với `showwaves`, `showfreqs`, `libx264` và AAC; Wavely không tải FFmpeg ngầm hoặc đóng gói binary FFmpeg ở bản hiện tại.
+- Chưa có chữ ký số/notarization; file cài trên release đầu sẽ có cảnh báo bảo mật của hệ điều hành.
+- Chưa benchmark trên máy macOS; tốc độ xuất cần được đo trên các cấu hình tham chiếu.

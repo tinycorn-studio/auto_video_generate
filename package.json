@@ -1,0 +1,33 @@
+{
+  "name": "wavely-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 1420 --strictPort",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "tauri": "tauri",
+    "tauri:dev": "npm run version:sync && npm run icons && tauri dev",
+    "tauri:build": "npm run version:sync && npm run icons && tauri build",
+    "icons": "tauri icon src-tauri/icons/icon.svg",
+    "version:sync": "node scripts/sync-version.mjs",
+    "version:set": "node scripts/set-version.mjs",
+    "release:notes": "node scripts/release-notes.mjs"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.0.0",
+    "@tauri-apps/plugin-dialog": "^2.0.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0"
+  },
+  "allowScripts": {
+    "esbuild@0.25.12": true
+  }
+}

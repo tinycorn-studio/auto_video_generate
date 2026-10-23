@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Quyền cần cho các hộp thoại chọn file và tiến trình xuất video của Wavely.",
+  "windows": ["main"],
+  "permissions": ["core:default", "dialog:default"]
+}

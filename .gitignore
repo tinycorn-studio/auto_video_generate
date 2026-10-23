@@ -1,0 +1,32 @@
+# Frontend build output
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+
+# Rust/Tauri build output and generated app icons
+/src-tauri/target/
+/src-tauri/gen/
+/src-tauri/icons/*.png
+/src-tauri/icons/*.ico
+/src-tauri/icons/*.icns
+/src-tauri/icons/**/*.png
+/src-tauri/icons/**/*.ico
+/src-tauri/icons/**/*.icns
+
+# Release bundles and temporary render files
+/release-dist/
+*.rendering.mp4
+*.previous.mp4
+
+# Local settings and diagnostics
+.env
+.env.*
+!.env.example
+*.log
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
