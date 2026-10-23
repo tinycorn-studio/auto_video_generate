@@ -1,7 +1,7 @@
 # Kế hoạch AutoVideoGenerator
 
 **Cập nhật lần cuối:** 2026-10-23
-**Trạng thái hiện tại:** Wavely v0.3.0 vẫn là release công khai mới nhất; preview v0.4.0 đã build xanh trên Windows/macOS, được cài và mở trên Windows; đang chờ xác nhận xuất video thực tế
+**Trạng thái hiện tại:** Wavely v0.4.0 đã được merge vào `main`; người dùng xác nhận đã cài và xuất video thành công trên Windows; release công khai mới nhất vẫn là v0.3.0, chưa tạo tag/release v0.4.0
 **Mục tiêu:** Tạo ứng dụng desktop chạy trên Windows và macOS, ghép một file ghi âm với một ảnh thành video có sóng âm đồng bộ.
 
 ## 1. Yêu cầu sản phẩm
@@ -114,7 +114,7 @@ Các mốc được cập nhật tại đây cùng với thay đổi mã nguồn
 | **M5 · Windows/macOS** | Đang triển khai · CI build đạt trên ba mục tiêu; người dùng xác nhận render thành công; smoke test macOS còn chờ | Smoke test macOS Intel/Apple Silicon |
 | **M6 · Bản dùng thử** | **Hoàn thành · v0.1.0 và v0.3.0 đã phát hành** | Installer và changelog đã đính kèm; ghi nhận phản hồi sau khi chạy thực tế |
 | **M7 · Khổ và bố cục xuất** | Đã phát hành trong v0.3.0; người dùng xác nhận render thành công; chưa kiểm tra toàn bộ tổ hợp khổ/vị trí/preset | Chọn khổ dọc/ngang; preview và FFmpeg đồng bộ bố cục |
-| **M8 · Sóng cân xứng và điều chỉnh bố cục** | Preview v0.4.0 build xanh cả ba mục tiêu; installer Windows đã cài/mở thành công; chờ người dùng xác nhận render | Kiểu sóng cân xứng `cline`, lưới 3 × 3 vị trí và scale 25–100% |
+| **M8 · Sóng cân xứng và điều chỉnh bố cục** | **Hoàn thành · v0.4.0 đã merge; người dùng xác nhận xuất video thành công trên Windows; CI xanh cả ba mục tiêu** | Kiểu sóng cân xứng `cline`, lưới 3 × 3 vị trí và scale 25–100% |
 
 ## 5. Tiêu chí nghiệm thu
 
@@ -278,15 +278,17 @@ Khi có thay đổi, cập nhật cả bảng mốc ở trên và nhật ký sau
 - Thay lựa chọn ba vùng dọc bằng lưới 3 × 3 (gồm góc trái/phải và các vị trí giữa); mặc định giữ vị trí dưới chính giữa như trước.
 - Thêm thanh scale 25–100%; kích thước vùng lọc thay đổi theo scale để tránh render toàn bộ wave rồi thu nhỏ, đồng thời giữ cùng tỷ lệ trong preview và video xuất.
 - Cập nhật README, CHANGELOG v0.4.0, và metadata version đồng bộ. `npm run build` (TypeScript + Vite) và `git diff --check` thành công.
-- Rustup 1.29.1 và Cargo/Rust stable x64 được cài bằng winget theo yêu cầu cài Rust/Cargo trước đó. `cargo check` khởi chạy được nhưng không truy cập được `index.crates.io`; chưa xác nhận render thực tế. Trình duyệt preview tích hợp cũng không truy cập được server `127.0.0.1:1420`, nên giao diện chưa được nhìn trực tiếp trong phiên này.
+- Rustup 1.29.1 và Cargo/Rust stable x64 được cài bằng winget theo yêu cầu trước đó. `cargo check` local không truy cập được `index.crates.io`; native compile sau đó được CI xác nhận trên ba nền tảng và người dùng xác nhận đã xuất video bằng preview Windows. Trình duyệt preview tích hợp trước đó không truy cập được server `127.0.0.1:1420`.
 - Kiểm tra hệ thống không tìm thấy Microsoft C++ Build Tools, prerequisite của Tauri trên Windows.
-- Wavely đang cài tại `%LOCALAPPDATA%\Wavely\wavely.exe` và vẫn báo phiên bản 0.3.0; chưa thay app bằng build chứa feature mới.
+- Trước khi lấy artifact preview, Wavely đang cài tại `%LOCALAPPDATA%\Wavely\wavely.exe` và báo phiên bản 0.3.0.
 - PR [#2](https://github.com/tinycorn-studio/auto_video_generate/pull/2) trên nhánh `feature/wave-layout-v0.4.0-preview`; commit `bf8dcc3` chứa mã nguồn đã build.
 - GitHub Actions run [#12](https://github.com/tinycorn-studio/auto_video_generate/actions/runs/39920781588) thành công trên Windows x64, macOS Intel và Apple Silicon. Artifact Windows ZIP có SHA-256 `22b8c85e4a9590b23e62934bd039b93b62740dc5ce49bc8927cc735b900111b`.
 - Installer NSIS `Wavely_0.4.0_x64-setup.exe` cài thành công (exit code 0) vào `%LOCALAPPDATA%\Wavely`; file `wavely.exe` báo ProductVersion/FileVersion 0.4.0 và app đã được mở.
 - FFmpeg runtime còn nguyên tại `%LOCALAPPDATA%\com.tinycorn.wavely\engine\ffmpeg.exe`; chạy `-version` xác nhận FFmpeg 9.0.2, không cần tải lại sau khi cập nhật app.
-- Chưa tạo tag hoặc GitHub Release công khai; bản 0.3.0 vẫn là release mới nhất. Rust/C++ toolchain trên máy không tham gia build installer.
-- **Tiếp theo:** người dùng kiểm tra preview sóng cân xứng, các vị trí/scale và xuất video thực tế; sau khi chốt mới merge PR và phát hành v0.4.0.
+- Người dùng xác nhận đã kiểm tra và xuất video thành công với Wavely v0.4.0 trên Windows.
+- PR [#2](https://github.com/tinycorn-studio/auto_video_generate/pull/2) đã squash-merge vào `main` tại commit `e610a4f`; source, metadata version và CHANGELOG v0.4.0 đã được đẩy lên remote.
+- Không tạo tag/GitHub Release theo yêu cầu hiện tại; v0.3.0 vẫn là release công khai mới nhất. Rust/C++ toolchain trên máy không tham gia build installer.
+- **Tiếp theo:** tạo annotated tag `v0.4.0` để build và phát hành installer Windows/macOS khi người dùng yêu cầu phát hành.
 
 ## 8. Tài liệu tham khảo
 
@@ -308,3 +310,4 @@ Khi có thay đổi, cập nhật cả bảng mốc ở trên và nhật ký sau
 - [Vercel Functions: cấu hình thời gian tối đa](https://vercel.com/docs/functions/configuring-functions/duration) — thời gian chạy phụ thuộc cấu hình và loại compute; cần kiểm tra giới hạn hiện hành trước khi thiết kế job render.
 - [Vercel Hobby plan](https://vercel.com/docs/plans/hobby) — giới hạn sử dụng của gói miễn phí.
 - [ffmpeg.wasm FAQ](https://ffmpegwasm.netlify.app/docs/faq/) và [performance](https://ffmpegwasm.netlify.app/docs/performance/) — so sánh đặc điểm hiệu năng của FFmpeg WebAssembly và native FFmpeg.
+
