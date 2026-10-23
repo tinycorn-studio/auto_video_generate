@@ -1,7 +1,7 @@
 # Kế hoạch AutoVideoGenerator
 
 **Cập nhật lần cuối:** 2026-10-23
-**Trạng thái hiện tại:** CI và đóng gói installer v0.1.0 đã thành công trên Windows x64, macOS Intel và Apple Silicon; kiểm tra FFmpeg thực tế, smoke test và benchmark còn chờ
+**Trạng thái hiện tại:** Source v0.2.0 có luồng tải engine FFmpeg; CI đóng gói installer và smoke test cho bản mới đang chờ
 **Mục tiêu:** Tạo ứng dụng desktop chạy trên Windows và macOS, ghép một file ghi âm với một ảnh dọc thành video có sóng âm đồng bộ.
 
 ## 1. Yêu cầu sản phẩm
@@ -67,9 +67,10 @@ Tên preset là gợi ý giao diện, không phải nhận diện thể loại b
 
 ### FFmpeg và cách phân phối
 
-- V1 dò FFmpeg trong PATH và một số vị trí cài phổ biến; kiểm tra filter `showwaves`, `showfreqs`, encoder H.264/AAC và báo cách cài nếu thiếu.
-- V1 yêu cầu cài FFmpeg riêng để giữ installer Wavely nhỏ và tránh tự phân phối một build FFmpeg có codec/license chưa được chốt. Không tải binary ngầm khi người dùng mở ứng dụng.
-- Có thể đánh giá lại bundle FFmpeg cho các release sau; cần ghi nguồn binary, phiên bản, license/source tương ứng, dung lượng cài đặt và kiểm tra đường chạy trên cả hai hệ điều hành trước khi thay đổi.
+- Wavely ưu tiên FFmpeg đã cài trong app data, rồi kiểm tra resource đóng gói, PATH và các vị trí phổ biến; xác thực filter `showwaves`, `showfreqs`, encoder H.264/AAC và phiên bản 6+.
+- Nếu chưa có engine, người dùng bấm nút cài trong app. Tải đúng archive cho Windows x64, macOS Intel hoặc Apple Silicon, xác minh SHA-256 ghim trong source, chỉ giữ executable cần thiết trong app data và xóa archive tạm. Không tải khi mở app hoặc khi chưa có thao tác người dùng.
+- Gói FFmpeg 9.0.2 được lấy từ Gyan (Windows) và Martin Riedl (macOS); nguồn, hash và license được ghi trong `THIRD_PARTY_NOTICES.md`. Build có `libx264`, nên trước mỗi lần đổi build phải xem lại license/source của chính binary đó.
+- FFmpeg tải lần đầu cần Internet; sau cài, render local/offline. Dung lượng engine là dữ liệu riêng, không nằm trong installer Wavely hoặc Cargo cache.
 
 ### Git, version và release
 
@@ -103,11 +104,11 @@ Các mốc được cập nhật tại đây cùng với thay đổi mã nguồn
 | Mốc | Trạng thái | Kết quả cần có |
 |---|---|---|
 | **M0 · Repo và plan** | **Hoàn thành** | Git repository, remote GitHub, .gitignore và tài liệu tiến độ dùng chung |
-| **M1 · Chốt yêu cầu / nền tảng** | Đang triển khai · quyết định đã ghi, native build còn chờ | Tauri 2; preset Tối giản mặc định, Spectrum tùy chọn; FFmpeg cài riêng ở v1; cần build thử trên Windows/macOS |
+| **M1 · Chốt yêu cầu / nền tảng** | Đang triển khai · đã chốt cài engine theo yêu cầu, native build còn chờ | Tauri 2; preset Tối giản mặc định, Spectrum tùy chọn; engine tải một lần, kiểm tra hash, cần build thử trên Windows/macOS |
 | **M2 · Prototype FFmpeg** | Đang triển khai · filtergraph đã có, chưa chạy | Ảnh + audio → MP4; đo line và Spectrum, giữ audio đúng thời lượng |
-| **M3 · Vỏ ứng dụng** | Đang triển khai · source đã có, Rust chưa compile | Màn hình chọn file, preview, lỗi FFmpeg, xuất, tiến độ và hủy tác vụ |
+| **M3 · Vỏ ứng dụng** | Đang triển khai · đã thêm nút tải/cài FFmpeg và tiến độ, Rust chưa compile | Màn hình chọn file, preview, cài engine, xuất, tiến độ và hủy tác vụ |
 | **M4 · Tối ưu và chất lượng** | Chưa bắt đầu | Đo thời gian/RAM/file size, kiểm tra đồng bộ âm thanh, màu sắc, crop và phát lại |
-| **M5 · Windows/macOS** | Đang triển khai · CI compile và installer đạt trên ba mục tiêu; smoke test còn chờ | Cài và thử app trên Windows, macOS Intel/Apple Silicon; xác nhận gọi FFmpeg và xuất video mẫu |
+| **M5 · Windows/macOS** | Đang triển khai · CI build installer v0.2.0 đang chờ | Cài và thử app trên Windows, macOS Intel/Apple Silicon; xác nhận tải FFmpeg và xuất video mẫu |
 | **M6 · Bản dùng thử** | **Hoàn thành · v0.1.0 đã phát hành** | Installer và changelog đã đính kèm; ghi nhận phản hồi sau khi chạy thực tế |
 
 ## 5. Tiêu chí nghiệm thu
@@ -140,10 +141,11 @@ Các mốc được cập nhật tại đây cùng với thay đổi mã nguồn
 | Rủi ro | Cách xử lý |
 |---|---|
 | Tốc độ mã hóa khác nhau giữa máy | Benchmark trên phần cứng được ghi rõ; cho phép hạ FPS hoặc dùng chế độ draft nếu cần |
-| FFmpeg chưa cài hoặc build thiếu encoder | Kiểm tra khi khởi động, báo lệnh cần thiết và phiên bản/encoder yêu cầu |
+| FFmpeg chưa cài hoặc build thiếu encoder | Kiểm tra khi khởi động, cho phép cài engine một lần, xác minh filter/encoder và cung cấp hướng dẫn thủ công khi tải lỗi |
 | Khác biệt WebView trên Windows/macOS | Dùng CSS/HTML phổ thông, kiểm tra cả hai nền tảng ở mốc M5 |
 | Cargo cache chiếm dung lượng máy phát triển | Đưa target vào .gitignore; dùng CARGO_TARGET_DIR nếu cần ổ riêng; chỉ clean khi cần và không đóng gói Cargo cache |
-| Đóng gói FFmpeg làm tăng dung lượng hoặc có nghĩa vụ license | Chốt build và mô hình phân phối trước bản release; lưu thông tin license của binary |
+| Tải engine FFmpeg có nghĩa vụ license/build provenance | Ghim build, ghi source/hash/license; rà soát đúng binary và source tương ứng trước release |
+| Nguồn tải engine thay đổi hoặc gói bị lỗi | Ghim URL/hash theo nền tảng, giới hạn kích thước, xác minh binary trước khi cài, xóa archive tạm và cho phép hủy |
 | Dạng vòng tròn khó dựng nhẹ bằng filtergraph có sẵn | Để Halo sau hai kiểu native FFmpeg nếu prototype không đạt mục tiêu hiệu năng |
 | Ảnh ngang hoặc ảnh có orientation metadata | Đọc orientation trước khi scale/crop và preview rõ vùng ảnh bị cắt |
 
@@ -202,6 +204,22 @@ Khi có thay đổi, cập nhật cả bảng mốc ở trên và nhật ký sau
 - Release notes được tạo tự động từ mục `[0.1.0]` trong `CHANGELOG.md`; installer chưa ký số/notarize và cần cài FFmpeg 6+ riêng.
 - Chưa chạy GUI hoặc render media trên máy thật; cần smoke test Windows/macOS và benchmark theo tiêu chí M4.
 - **Tiếp theo:** cài đúng gói theo hệ điều hành, cài FFmpeg, tạo một video mẫu rồi ghi thời gian render/chất lượng/khả năng phát lại.
+
+#### 2026-10-23 · Wavely v0.2.0 build mới
+
+- Chuyển mục FFmpeg cài trong ứng dụng từ `[Unreleased]` sang changelog `0.2.0`; đồng bộ version npm/Cargo/Tauri.
+- CI pull request chuyển từ compile-only sang đóng gói Windows `.exe`/`.msi` và macOS `.dmg`, tải làm artifacts để review và cài thử.
+- Máy Windows hiện không có MSVC Build Tools; dùng GitHub Actions để build native mà không thêm toolchain nhiều GB vào máy.
+- **Đang chờ:** CI build installer ba nền tảng; sau khi có artifact Windows sẽ thay v0.1.0 đang cài và mở app mới.
+
+#### 2026-10-23 · Cài engine FFmpeg trong ứng dụng
+
+- Đổi luồng thiếu FFmpeg từ hướng dẫn cài system package sang nút tải/cài một lần sau thao tác chủ động của người dùng.
+- Thêm archive cố định FFmpeg 9.0.2 cho Windows x64 và macOS Intel/Apple Silicon; mã Rust ghim SHA-256, giới hạn kích thước, giải nén executable, xác thực filter/encoder và dọn archive tạm.
+- Engine cài vào app-local-data; sau cài, app dò engine trước PATH và render vẫn chạy local/offline. Có tiến độ tải và hủy tải.
+- Thêm `THIRD_PARTY_NOTICES.md` với nhà cung cấp, phiên bản, hash, nguồn và license/build source đã biết; cập nhật CHANGELOG/README/RELEASE.
+- Chưa biên dịch native source mới, chưa chạy luồng tải thực tế hoặc render trên Windows/macOS. Cần CI trên ba target, kiểm tra binary/checksum và review license/build provenance trước khi phát hành.
+- **Tiếp theo:** build CI cho source mới, chạy downloader và render mẫu trên Windows, macOS Intel và Apple Silicon; ghi kết quả/dung lượng engine và chốt release.
 
 ## 8. Tài liệu tham khảo
 

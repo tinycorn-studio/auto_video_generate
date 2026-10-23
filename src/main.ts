@@ -5,6 +5,7 @@ import "./style.css";
 
 type VisualizerStyle = "minimal" | "spectrum";
 type EngineStatus = { available: boolean; version: string | null; message: string };
+type EngineInstallEvent = { status: "downloading" | "extracting" | "ready" | "cancelled" | "error"; percent: number; message: string };
 type RenderEvent = {
   jobId: string;
   status: "running" | "completed" | "cancelled" | "error";
@@ -26,13 +27,18 @@ const cancelButton = byId<HTMLButtonElement>("cancelButton");
 const audioElement = byId<HTMLAudioElement>("audioElement");
 const selectedImage = byId<HTMLImageElement>("selectedImage");
 const engineStatus = byId<HTMLDivElement>("engineStatus");
+const engineSetup = byId<HTMLElement>("engineSetup");
+const engineSetupText = byId<HTMLParagraphElement>("engineSetupText");
+const installEngineButton = byId<HTMLButtonElement>("installEngineButton");
+const cancelEngineButton = byId<HTMLButtonElement>("cancelEngineButton");
+const engineProgress = byId<HTMLDivElement>("engineProgress");
 const renderProgress = byId<HTMLDivElement>("renderProgress");
 const resultMessage = byId<HTMLParagraphElement>("resultMessage");
 const renderLabel = byId<HTMLSpanElement>("renderLabel");
 const previewPlaceholder = byId<HTMLDivElement>("previewPlaceholder");
 const previewEmptyLabel = byId<HTMLDivElement>("previewEmptyLabel");
 const videoFrame = byId<HTMLDivElement>("videoFrame");
-const state = { imagePath: "", audioPath: "", style: "minimal" as VisualizerStyle, engine: null as EngineStatus | null, jobId: "", busy: false };
+const state = { imagePath: "", audioPath: "", style: "minimal" as VisualizerStyle, engine: null as EngineStatus | null, jobId: "", busy: false, installing: false };
 
 function humanDuration(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return "—";
@@ -62,12 +68,17 @@ function setEngine(status: EngineStatus): void {
   engineStatus.replaceChildren(dot, label);
   engineStatus.title = status.message;
   if (!status.available) {
-    const installHint = status.message.includes("Chưa tìm thấy")
-      ? "Cần FFmpeg 6+ có showwaves/showfreqs và H.264/AAC. Windows: winget install --id Gyan.FFmpeg -e · macOS: brew install ffmpeg. Sau khi cài, mở lại Wavely."
-      : status.message;
-    resultMessage.textContent = installHint;
-    resultMessage.className = "result-message is-error";
+    engineSetupText.textContent = status.message.includes("Chưa tìm thấy")
+      ? "Tải FFmpeg một lần vào thư mục riêng của Wavely. Sau đó có thể xuất video offline; file ảnh và âm thanh không được tải lên."
+      : `${status.message} Bạn có thể cài engine tương thích ngay trong Wavely.`;
+    engineSetup.hidden = false;
+    if (!state.installing && !resultMessage.classList.contains("is-error")) resultMessage.textContent = "";
+  } else {
+    engineSetup.hidden = true;
   }
+  installEngineButton.disabled = state.installing;
+  cancelEngineButton.hidden = !state.installing;
+  engineProgress.hidden = !state.installing;
   updateRenderButton();
 }
 
@@ -81,6 +92,69 @@ function updateRenderButton(): void {
 function showError(message: string): void {
   resultMessage.textContent = message;
   resultMessage.className = "result-message is-error";
+}
+
+async function refreshEngineStatus(): Promise<void> {
+  setEngine(await invoke<EngineStatus>("ffmpeg_status"));
+}
+
+async function startEngineInstall(): Promise<void> {
+  if (state.installing || state.engine?.available) return;
+  resultMessage.textContent = "";
+  resultMessage.className = "result-message";
+  state.installing = true;
+  installEngineButton.disabled = true;
+  cancelEngineButton.disabled = false;
+  cancelEngineButton.hidden = false;
+  engineProgress.hidden = false;
+  byId("engineProgressMessage").textContent = "Đang kết nối tới nguồn FFmpeg…";
+  byId("engineProgressPercent").textContent = "0%";
+  byId("engineProgressFill").style.width = "0%";
+  try {
+    await invoke("install_ffmpeg");
+  } catch (error) {
+    state.installing = false;
+    installEngineButton.disabled = false;
+    cancelEngineButton.hidden = true;
+    engineProgress.hidden = true;
+    showError(String(error));
+  }
+}
+
+async function cancelEngineInstall(): Promise<void> {
+  if (!state.installing) return;
+  cancelEngineButton.disabled = true;
+  byId("engineProgressMessage").textContent = "Đang hủy tải và dọn file tạm…";
+  try {
+    await invoke("cancel_ffmpeg_install");
+  } catch (error) {
+    cancelEngineButton.disabled = false;
+    showError(String(error));
+  }
+}
+
+async function handleEngineInstallEvent(event: EngineInstallEvent): Promise<void> {
+  const percent = Math.max(0, Math.min(100, Math.round(event.percent)));
+  byId("engineProgressPercent").textContent = `${percent}%`;
+  byId("engineProgressFill").style.width = `${percent}%`;
+  byId("engineProgressMessage").textContent = event.message;
+  if (event.status === "ready") {
+    state.installing = false;
+    cancelEngineButton.disabled = false;
+    await refreshEngineStatus();
+    resultMessage.textContent = event.message;
+    resultMessage.className = "result-message is-success";
+  } else if (event.status === "error" || event.status === "cancelled") {
+    state.installing = false;
+    cancelEngineButton.disabled = false;
+    engineProgress.hidden = true;
+    if (event.status === "error") showError(event.message);
+    else {
+      resultMessage.textContent = event.message;
+      resultMessage.className = "result-message";
+    }
+    await refreshEngineStatus();
+  }
 }
 
 function setBusy(busy: boolean): void {
@@ -237,6 +311,8 @@ async function init(): Promise<void> {
   audioPicker.addEventListener("click", () => void pickAudio().catch((error) => showError(String(error))));
   renderButton.addEventListener("click", () => void startRender());
   cancelButton.addEventListener("click", () => void cancelRender());
+  installEngineButton.addEventListener("click", () => void startEngineInstall());
+  cancelEngineButton.addEventListener("click", () => void cancelEngineInstall());
   document.querySelectorAll<HTMLButtonElement>(".preset-card").forEach((button) => {
     button.addEventListener("click", () => updatePreset(button.dataset.style as VisualizerStyle));
   });
@@ -248,10 +324,10 @@ async function init(): Promise<void> {
   audioElement.addEventListener("pause", () => (byId("playAudio").textContent = "▶"));
   audioElement.addEventListener("ended", () => (byId("playAudio").textContent = "▶"));
   await listen<RenderEvent>("render-progress", (event) => handleRenderEvent(event.payload));
-  const version = await invoke<string>("app_version").catch(() => "0.1.0");
+  await listen<EngineInstallEvent>("ffmpeg-install-progress", (event) => void handleEngineInstallEvent(event.payload));
+  const version = await invoke<string>("app_version").catch(() => "0.2.0");
   byId("appVersion").textContent = version;
-  const status = await invoke<EngineStatus>("ffmpeg_status");
-  setEngine(status);
+  await refreshEngineStatus();
 }
 
 void init().catch((error) => {

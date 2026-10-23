@@ -1,12 +1,15 @@
 use serde::Serialize;
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fs;
-use std::io::{BufRead, BufReader, Read};
+use std::fs::File;
+use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Manager, State};
 
 type JobMap = HashMap<String, Arc<Mutex<ManagedProcess>>>;
@@ -37,8 +40,283 @@ struct RenderEvent {
     output_path: Option<String>,
 }
 
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct EngineInstallEvent {
+    status: String,
+    percent: f32,
+    message: String,
+}
+
+#[derive(Default)]
+struct EngineInstallState {
+    running: Arc<AtomicBool>,
+    cancel: Arc<AtomicBool>,
+}
+
+struct EnginePackage {
+    url: &'static str,
+    sha256: &'static str,
+    archive: EngineArchive,
+}
+
+#[derive(Clone, Copy)]
+enum EngineArchive {
+    SevenZip,
+    Zip,
+}
+
+fn engine_package() -> Result<EnginePackage, String> {
+    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
+    {
+        return Ok(EnginePackage {
+            url: "https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-9.0.2-essentials_build.7z",
+            sha256: "4705843ccaaf54257c16ad90f3e952ece33c17df964ecf7bfdbb0f49c7171077",
+            archive: EngineArchive::SevenZip,
+        });
+    }
+    #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+    {
+        return Ok(EnginePackage {
+            url: "https://ffmpeg.martin-riedl.de/download/macos/amd64/1789931006_9.0.2/ffmpeg.zip",
+            sha256: "7c6b4125b191cbf773832dc51f424cf2b6bb7da43007d1e066f95909e47cacd4",
+            archive: EngineArchive::Zip,
+        });
+    }
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    {
+        return Ok(EnginePackage {
+            url: "https://ffmpeg.martin-riedl.de/download/macos/arm64/1789931890_9.0.2/ffmpeg.zip",
+            sha256: "c8ed4c4e6978a03c485edbfe4e0a5dc2380f8a30bba5150531b31b094492d924",
+            archive: EngineArchive::Zip,
+        });
+    }
+    #[allow(unreachable_code)]
+    Err("Bản cài engine hiện hỗ trợ Windows x64 và macOS Intel/Apple Silicon.".to_string())
+}
+
+fn emit_engine_progress(app: &AppHandle, status: &str, percent: f32, message: impl Into<String>) {
+    let _ = app.emit(
+        "ffmpeg-install-progress",
+        EngineInstallEvent { status: status.to_string(), percent, message: message.into() },
+    );
+}
+
+fn engine_executable_name() -> &'static str {
+    if cfg!(windows) { "ffmpeg.exe" } else { "ffmpeg" }
+}
+
+fn engine_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    app.path()
+        .app_local_data_dir()
+        .map(|path| path.join("engine"))
+        .map_err(|error| format!("Không truy cập được thư mục dữ liệu Wavely: {error}"))
+}
+
+fn download_engine_archive(
+    app: &AppHandle,
+    package: &EnginePackage,
+    destination: &Path,
+    cancel: &AtomicBool,
+) -> Result<(), String> {
+    let client = reqwest::blocking::Client::builder()
+        .connect_timeout(Duration::from_secs(20))
+        .timeout(Duration::from_secs(300))
+        .user_agent(concat!("Wavely/", env!("CARGO_PKG_VERSION")))
+        .build()
+        .map_err(|error| format!("Không khởi tạo được kết nối tải FFmpeg: {error}"))?;
+    let mut response = client
+        .get(package.url)
+        .send()
+        .and_then(reqwest::blocking::Response::error_for_status)
+        .map_err(|error| format!("Không tải được FFmpeg. Kiểm tra kết nối Internet rồi thử lại: {error}"))?;
+    let total = response.content_length().unwrap_or(0);
+    const MAX_ARCHIVE_BYTES: u64 = 256 * 1024 * 1024;
+    if total > MAX_ARCHIVE_BYTES {
+        return Err("Kích thước gói FFmpeg không hợp lệ.".to_string());
+    }
+
+    let mut file = File::create(destination).map_err(|error| format!("Không tạo được file tải tạm: {error}"))?;
+    let mut hasher = Sha256::new();
+    let mut downloaded = 0_u64;
+    let mut buffer = [0_u8; 64 * 1024];
+    let mut last_emit = Instant::now();
+    loop {
+        if cancel.load(Ordering::Relaxed) {
+            return Err("__cancelled__".to_string());
+        }
+        let count = response.read(&mut buffer).map_err(|error| format!("Lỗi khi tải FFmpeg: {error}"))?;
+        if count == 0 { break; }
+        downloaded = downloaded.saturating_add(count as u64);
+        if (total > 0 && downloaded > total) || downloaded > MAX_ARCHIVE_BYTES {
+            return Err("Gói tải xuống vượt quá kích thước cho phép.".to_string());
+        }
+        file.write_all(&buffer[..count]).map_err(|error| format!("Không ghi được gói FFmpeg: {error}"))?;
+        hasher.update(&buffer[..count]);
+        if last_emit.elapsed() >= Duration::from_millis(250) {
+            let percent = if total > 0 {
+                (downloaded as f64 / total as f64 * 85.0).clamp(0.0, 85.0) as f32
+            } else {
+                (downloaded as f64 / MAX_ARCHIVE_BYTES as f64 * 85.0).clamp(0.0, 85.0) as f32
+            };
+            let detail = if total > 0 {
+                format!("Đang tải engine FFmpeg · {}%", (downloaded as f64 / total as f64 * 100.0).round() as u32)
+            } else {
+                format!("Đang tải engine FFmpeg · {:.1} MB", downloaded as f64 / 1_048_576.0)
+            };
+            emit_engine_progress(app, "downloading", percent, detail);
+            last_emit = Instant::now();
+        }
+    }
+    file.flush().map_err(|error| format!("Không hoàn tất được gói FFmpeg: {error}"))?;
+    if total > 0 && downloaded != total {
+        return Err("Gói FFmpeg tải xuống chưa hoàn chỉnh.".to_string());
+    }
+    let actual_hash = format!("{:x}", hasher.finalize());
+    if actual_hash != package.sha256 {
+        return Err("Không khớp SHA-256 của FFmpeg. Gói tải xuống đã bị từ chối.".to_string());
+    }
+    Ok(())
+}
+
+fn find_named_file(directory: &Path, filename: &str) -> Result<Option<PathBuf>, String> {
+    let entries = fs::read_dir(directory).map_err(|error| format!("Không đọc được thư mục giải nén: {error}"))?;
+    for entry in entries {
+        let entry = entry.map_err(|error| format!("Không đọc được file giải nén: {error}"))?;
+        let kind = entry.file_type().map_err(|error| format!("Không xác định được file giải nén: {error}"))?;
+        if kind.is_file() && entry.file_name().to_string_lossy().eq_ignore_ascii_case(filename) {
+            return Ok(Some(entry.path()));
+        }
+        if kind.is_dir() {
+            if let Some(found) = find_named_file(&entry.path(), filename)? {
+                return Ok(Some(found));
+            }
+        }
+    }
+    Ok(None)
+}
+
+fn extract_engine_archive(archive_path: &Path, destination: &Path, format: EngineArchive) -> Result<PathBuf, String> {
+    fs::create_dir_all(destination).map_err(|error| format!("Không tạo được thư mục giải nén: {error}"))?;
+    match format {
+        EngineArchive::SevenZip => {
+            sevenz_rust2::decompress_file(archive_path, destination)
+                .map_err(|error| format!("Không thể giải nén FFmpeg: {error}"))?;
+            find_named_file(destination, "ffmpeg.exe")?
+                .ok_or_else(|| "Trong gói không tìm thấy ffmpeg.exe.".to_string())
+        }
+        EngineArchive::Zip => {
+            let file = File::open(archive_path).map_err(|error| format!("Không mở được gói FFmpeg: {error}"))?;
+            let mut archive = zip::ZipArchive::new(file).map_err(|error| format!("Gói FFmpeg ZIP không hợp lệ: {error}"))?;
+            let index = (0..archive.len()).find(|index| {
+                archive.by_index(*index).map(|entry| {
+                    !entry.is_dir() && entry.name().rsplit('/').next() == Some("ffmpeg")
+                }).unwrap_or(false)
+            }).ok_or_else(|| "Trong gói không tìm thấy file ffmpeg.".to_string())?;
+            let mut source = archive.by_index(index).map_err(|error| format!("Không đọc được FFmpeg trong gói: {error}"))?;
+            let extracted = destination.join("ffmpeg");
+            let mut output = File::create(&extracted).map_err(|error| format!("Không tạo được file FFmpeg: {error}"))?;
+            std::io::copy(&mut source, &mut output).map_err(|error| format!("Không giải nén được FFmpeg: {error}"))?;
+            output.flush().map_err(|error| format!("Không hoàn tất được file FFmpeg: {error}"))?;
+            Ok(extracted)
+        }
+    }
+}
+
+fn install_engine_files(app: &AppHandle, cancel: &AtomicBool, work_dir: &Path) -> Result<String, String> {
+    let package = engine_package()?;
+    fs::create_dir_all(work_dir).map_err(|error| format!("Không tạo được thư mục tạm: {error}"))?;
+    let archive_path = work_dir.join(match package.archive { EngineArchive::SevenZip => "ffmpeg.7z", EngineArchive::Zip => "ffmpeg.zip" });
+    emit_engine_progress(app, "downloading", 0.0, "Đang kết nối tới nguồn FFmpeg…");
+    download_engine_archive(app, &package, &archive_path, cancel)?;
+    if cancel.load(Ordering::Relaxed) { return Err("__cancelled__".to_string()); }
+
+    emit_engine_progress(app, "extracting", 87.0, "Đã xác minh gói tải xuống · đang cài engine…");
+    let extract_dir = work_dir.join("unpacked");
+    let extracted = extract_engine_archive(&archive_path, &extract_dir, package.archive)?;
+    if cancel.load(Ordering::Relaxed) { return Err("__cancelled__".to_string()); }
+
+    let engine_dir = engine_data_dir(app)?;
+    fs::create_dir_all(&engine_dir).map_err(|error| format!("Không tạo được thư mục engine: {error}"))?;
+    let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
+    let staged = engine_dir.join(format!(".ffmpeg-stage-{nonce}"));
+    fs::copy(&extracted, &staged).map_err(|error| format!("Không cài được file FFmpeg: {error}"))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut permissions = fs::metadata(&staged).map_err(|error| format!("Không đọc được quyền file FFmpeg: {error}"))?.permissions();
+        permissions.set_mode(0o755);
+        fs::set_permissions(&staged, permissions).map_err(|error| format!("Không cấp quyền chạy FFmpeg: {error}"))?;
+    }
+    match ffmpeg_problem(&staged) {
+        Some(result) if result.starts_with("ready:") => {},
+        Some(problem) => { let _ = fs::remove_file(&staged); return Err(format!("Engine tải về không đáp ứng yêu cầu: {problem}")); },
+        None => { let _ = fs::remove_file(&staged); return Err("Không xác định được trạng thái engine FFmpeg.".to_string()); },
+    }
+
+    let target = engine_dir.join(engine_executable_name());
+    let backup = engine_dir.join(format!(".ffmpeg-backup-{nonce}"));
+    if target.exists() {
+        fs::rename(&target, &backup).map_err(|error| format!("Không thay được engine hiện tại: {error}"))?;
+    }
+    if let Err(error) = fs::rename(&staged, &target) {
+        if backup.exists() { let _ = fs::rename(&backup, &target); }
+        let _ = fs::remove_file(&staged);
+        return Err(format!("Không thể hoàn tất cài đặt FFmpeg: {error}"));
+    }
+    let _ = fs::remove_file(backup);
+    let version = match ffmpeg_problem(&target) {
+        Some(result) if result.starts_with("ready:") => result.trim_start_matches("ready:").to_string(),
+        _ => return Err("FFmpeg đã cài nhưng không vượt qua kiểm tra sau cài đặt.".to_string()),
+    };
+    Ok(version)
+}
+
+fn install_engine_worker(app: AppHandle, cancel: Arc<AtomicBool>, running: Arc<AtomicBool>) {
+    let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
+    let work_dir = app.path().app_local_data_dir().map(|path| path.join(format!(".ffmpeg-install-{nonce}")));
+    let result = match &work_dir {
+        Ok(path) => install_engine_files(&app, &cancel, path),
+        Err(error) => Err(format!("Không truy cập được thư mục dữ liệu Wavely: {error}")),
+    };
+    if let Ok(path) = work_dir { let _ = fs::remove_dir_all(path); }
+    running.store(false, Ordering::Release);
+    match result {
+        Ok(version) => emit_engine_progress(&app, "ready", 100.0, format!("Đã cài {version}. Engine được lưu trên máy.")),
+        Err(error) if error == "__cancelled__" => emit_engine_progress(&app, "cancelled", 0.0, "Đã hủy tải FFmpeg. File tạm đã được dọn."),
+        Err(error) => emit_engine_progress(&app, "error", 0.0, error),
+    }
+}
+
+#[tauri::command]
+fn install_ffmpeg(app: AppHandle, state: State<'_, EngineInstallState>) -> Result<(), String> {
+    if state.running.compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire).is_err() {
+        return Err("FFmpeg đang được tải hoặc cài đặt.".to_string());
+    }
+    state.cancel.store(false, Ordering::Release);
+    let cancel = Arc::clone(&state.cancel);
+    let running = Arc::clone(&state.running);
+    thread::spawn(move || install_engine_worker(app, cancel, running));
+    Ok(())
+}
+
+#[tauri::command]
+fn cancel_ffmpeg_install(state: State<'_, EngineInstallState>) -> Result<(), String> {
+    if !state.running.load(Ordering::Acquire) {
+        return Err("Không có lượt cài FFmpeg nào đang chạy.".to_string());
+    }
+    state.cancel.store(true, Ordering::Release);
+    Ok(())
+}
+
 fn locate_ffmpeg(app: &AppHandle) -> Option<PathBuf> {
     let filename = if cfg!(windows) { "ffmpeg.exe" } else { "ffmpeg" };
+    if let Ok(engine_dir) = engine_data_dir(app) {
+        let managed = engine_dir.join(filename);
+        if managed.is_file() {
+            return Some(managed);
+        }
+    }
     if let Ok(resource_dir) = app.path().resource_dir() {
         let packaged = resource_dir.join("resources").join(filename);
         if packaged.is_file() {
@@ -127,6 +405,14 @@ fn ffmpeg_problem(path: &Path) -> Option<String> {
     }
 
     let version = version_output.lines().next().unwrap_or("FFmpeg").trim().to_string();
+    let major = version_output
+        .split_once("version ")
+        .and_then(|(_, value)| value.split_whitespace().next())
+        .and_then(|value| value.split('.').next())
+        .and_then(|value| value.parse::<u32>().ok());
+    if major.is_some_and(|major| major < 6) {
+        return Some("Cần FFmpeg phiên bản 6 trở lên để xuất video ổn định.".to_string());
+    }
     Some(format!("ready:{version}"))
 }
 
@@ -136,7 +422,7 @@ fn ffmpeg_status(app: AppHandle) -> EngineStatus {
         return EngineStatus {
             available: false,
             version: None,
-            message: "Chưa tìm thấy FFmpeg. Cài FFmpeg 6 trở lên, rồi mở lại ứng dụng.".to_string(),
+            message: "Chưa tìm thấy FFmpeg. Cài engine ngay trong Wavely hoặc tự cài FFmpeg 6 trở lên.".to_string(),
         };
     };
     match ffmpeg_problem(&path) {
@@ -384,7 +670,8 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(ActiveJobs::default())
-        .invoke_handler(tauri::generate_handler![app_version, ffmpeg_status, start_render, cancel_render])
+        .manage(EngineInstallState::default())
+        .invoke_handler(tauri::generate_handler![app_version, ffmpeg_status, install_ffmpeg, cancel_ffmpeg_install, start_render, cancel_render])
         .run(tauri::generate_context!())
         .expect("Wavely could not start");
 }
