@@ -4,6 +4,13 @@ Mọi thay đổi đáng chú ý của Wavely được ghi tại đây. Định 
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-23
+
+### Added
+
+- Thêm kiểu sóng Cân xứng với các nhịp vươn đều lên trên và xuống dưới trục giữa.
+- Chọn vị trí wave theo lưới 3 × 3 và điều chỉnh kích thước từ 25% đến 100%; preview và filtergraph FFmpeg dùng cùng cấu hình.
+
 ## [0.3.0] - 2026-10-23
 
 ### Added

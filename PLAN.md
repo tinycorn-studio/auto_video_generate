@@ -1,7 +1,7 @@
 # Kế hoạch AutoVideoGenerator
 
 **Cập nhật lần cuối:** 2026-10-23
-**Trạng thái hiện tại:** Wavely v0.3.0 đã phát hành với installer Windows và macOS; người dùng xác nhận xuất video thành công; smoke test macOS và benchmark còn chờ
+**Trạng thái hiện tại:** Wavely v0.3.0 vẫn là bản cài trên Windows và release công khai mới nhất; mã nguồn cùng metadata v0.4.0 đã sẵn sàng cho CI; frontend build đạt, đang chờ GitHub Actions đóng gói installer Windows
 **Mục tiêu:** Tạo ứng dụng desktop chạy trên Windows và macOS, ghép một file ghi âm với một ảnh thành video có sóng âm đồng bộ.
 
 ## 1. Yêu cầu sản phẩm
@@ -15,7 +15,7 @@
 ### Đầu ra mặc định
 
 - Mặc định MP4 dọc 1080 × 1920, 30 fps, H.264 và âm thanh AAC; có lựa chọn ngang 1920 × 1080.
-- Wave được căn giữa theo chiều ngang và có thể đặt phía trên, giữa hoặc phía dưới khung hình.
+- Wave có thể đặt ở 9 vùng của khung hình và điều chỉnh kích thước từ 25% đến 100%.
 - Độ dài video khớp với bản ghi âm.
 - Giữ nguyên nội dung âm thanh; không tự giảm tốc, thêm reverb, nhạc nền hoặc phụ đề.
 - Ảnh không méo. Nếu ảnh khác tỷ lệ khung hình đã chọn, tự căn giữa và cắt vừa khung; không phóng đại hiệu ứng.
@@ -33,6 +33,7 @@
 | Preset | Hình ảnh sóng | Dùng khi | Ưu tiên hiệu năng |
 |---|---|---|---|
 | **Tối giản** | Đường sóng mảnh | Giọng nói, podcast, bản thu nhẹ | Rất cao; đề xuất làm mặc định ban đầu |
+| **Cân xứng** | Các vạch biên độ vươn đối xứng trên/dưới trục giữa | Podcast, lo-fi, video cần dải sóng cân đối | Rất cao; dùng `showwaves` native |
 | **Spectrum** | Cột phổ đối xứng | Nhạc, beat, EDM | Cao; chỉ vẽ một dải cột gọn |
 | **Halo** | Vòng âm thanh | Acoustic, lo-fi | Thử nghiệm; đưa vào sau khi đo hiệu năng |
 
@@ -52,6 +53,7 @@ Tên preset là gợi ý giao diện, không phải nhận diện thể loại b
 - Dùng FFmpeg làm bộ máy media chung trên Windows/macOS. V1 đọc duration từ thông tin đầu vào FFmpeg để không cần thêm binary FFprobe.
 - Dùng filtergraph của FFmpeg để giữ ảnh nền, tạo dải sóng trong suốt, ghép âm thanh và mã hóa MP4.
 - **Tối giản:** dùng showwaves cho sóng thể hiện biên độ theo thời gian.
+- **Cân xứng:** dùng showwaves `mode=cline` để vẽ từng mẫu đối xứng quanh tâm vùng wave; giữ cùng filter native, FPS và kích thước vùng để không thêm bước phân tích AI hay tiến trình phụ.
 - **Spectrum:** dùng showfreqs ở chế độ bar để hiển thị các dải tần. Giới hạn kích thước vùng sóng và số cột; không dựng phân tích phổ cho toàn khung hình nếu chỉ cần một overlay nhỏ.
 - **Halo:** FFmpeg không cung cấp cùng kiểu vòng tròn radial trực tiếp như hai kiểu trên. Chỉ thêm khi có thể dựng overlay nhỏ, đo được và không làm chậm đáng kể; nếu không, để ở phiên bản sau.
 - Dùng -progress pipe:1 hoặc cơ chế tương đương để hiển thị tiến độ. Gọi tiến trình bằng danh sách tham số, không nối lệnh từ chuỗi đầu vào của người dùng.
@@ -111,7 +113,8 @@ Các mốc được cập nhật tại đây cùng với thay đổi mã nguồn
 | **M4 · Tối ưu và chất lượng** | Chưa bắt đầu | Đo thời gian/RAM/file size, kiểm tra đồng bộ âm thanh, màu sắc, crop và phát lại |
 | **M5 · Windows/macOS** | Đang triển khai · CI build đạt trên ba mục tiêu; người dùng xác nhận render thành công; smoke test macOS còn chờ | Smoke test macOS Intel/Apple Silicon |
 | **M6 · Bản dùng thử** | **Hoàn thành · v0.1.0 và v0.3.0 đã phát hành** | Installer và changelog đã đính kèm; ghi nhận phản hồi sau khi chạy thực tế |
-| **M7 · Khổ và bố cục xuất** | Đã phát hành trong v0.3.0; người dùng xác nhận render thành công; chưa kiểm tra toàn bộ tổ hợp khổ/vị trí/preset | Chọn khổ dọc/ngang và vị trí wave; preview, crop và FFmpeg dùng chung lựa chọn |
+| **M7 · Khổ và bố cục xuất** | Đã phát hành trong v0.3.0; người dùng xác nhận render thành công; chưa kiểm tra toàn bộ tổ hợp khổ/vị trí/preset | Chọn khổ dọc/ngang; preview và FFmpeg đồng bộ bố cục |
+| **M8 · Sóng cân xứng và điều chỉnh bố cục** | Mã nguồn và metadata v0.4.0 hoàn tất; `npm run build` đạt; đang chờ GitHub Actions xác nhận Rust build và tạo installer Windows | Kiểu sóng cân xứng `cline`, lưới 3 × 3 vị trí và scale 25–100% |
 
 ## 5. Tiêu chí nghiệm thu
 
@@ -119,7 +122,8 @@ Các mốc được cập nhật tại đây cùng với thay đổi mã nguồn
 
 - Chọn được một ảnh và một file âm thanh; hiển thị tên, thời lượng và trạng thái đầu vào.
 - Xuất được MP4 theo preset đã chọn và mở được trong trình phát phổ biến.
-- Chọn được MP4 dọc 1080 × 1920 hoặc ngang 1920 × 1080; chọn được vị trí wave trên, giữa hoặc dưới.
+- Chọn được MP4 dọc 1080 × 1920 hoặc ngang 1920 × 1080; chọn được một trong 9 vị trí và scale wave 25–100%.
+- Kiểu sóng Cân xứng thể hiện biên độ đều lên trên và xuống dưới đường giữa.
 - Thời lượng khớp với âm thanh; không tăng/giảm tốc hoặc làm mất tiếng ở đầu/cuối.
 - Tiến độ cập nhật; có thể hủy mà không để lại file đầu ra hỏng như kết quả hoàn chỉnh.
 - Lỗi FFmpeg, file lỗi, thiếu dung lượng và đường dẫn có dấu/ký tự đặc biệt được xử lý rõ ràng.
@@ -130,7 +134,7 @@ Các mốc được cập nhật tại đây cùng với thay đổi mã nguồn
 - Ảnh không bị kéo méo; wave ở đúng vị trí đã chọn và không bị cắt khỏi khung hình.
 - Sóng có nhịp phản ứng ổn định theo audio, không nhấp nháy bất thường.
 - Âm thanh đầu ra nghe được từ đầu đến cuối và giữ nguyên nội dung bản thu.
-- Preview và video xuất ra dùng cùng khổ, vị trí wave và preset.
+- Preview và video xuất ra dùng cùng khổ, vị trí, scale wave và preset.
 
 ### Hiệu năng và hệ điều hành
 
@@ -268,10 +272,23 @@ Khi có thay đổi, cập nhật cả bảng mốc ở trên và nhật ký sau
 - Smoke test trực tiếp trên macOS và benchmark thời gian/RAM chưa thực hiện; CI xác nhận build/package chứ không thay thế kiểm tra chạy app trên máy Mac.
 - **Tiếp theo:** smoke test app trên macOS Intel/Apple Silicon; benchmark clip 1 và 5 phút ở hai khổ Full HD; kiểm tra các tổ hợp vị trí wave và preset.
 
+#### 2026-10-23 · Sóng cân xứng và bố cục 9 vị trí
+
+- Thêm preset Cân xứng, dùng FFmpeg `showwaves` ở `mode=cline` để các vạch biên độ phát triển đồng đều quanh trục giữa; preset Tối giản và Spectrum vẫn giữ nguyên.
+- Thay lựa chọn ba vùng dọc bằng lưới 3 × 3 (gồm góc trái/phải và các vị trí giữa); mặc định giữ vị trí dưới chính giữa như trước.
+- Thêm thanh scale 25–100%; kích thước vùng lọc thay đổi theo scale để tránh render toàn bộ wave rồi thu nhỏ, đồng thời giữ cùng tỷ lệ trong preview và video xuất.
+- Cập nhật README, CHANGELOG v0.4.0, và metadata version đồng bộ. `npm run build` (TypeScript + Vite) và `git diff --check` thành công.
+- Rustup 1.29.1 và Cargo/Rust stable x64 được cài bằng winget theo yêu cầu cài Rust/Cargo trước đó. `cargo check` khởi chạy được nhưng không truy cập được `index.crates.io`; chưa xác nhận render thực tế. Trình duyệt preview tích hợp cũng không truy cập được server `127.0.0.1:1420`, nên giao diện chưa được nhìn trực tiếp trong phiên này.
+- Kiểm tra hệ thống không tìm thấy Microsoft C++ Build Tools, prerequisite của Tauri trên Windows.
+- Wavely đang cài tại `%LOCALAPPDATA%\Wavely\wavely.exe` và vẫn báo phiên bản 0.3.0; chưa thay app bằng build chứa feature mới.
+- GitHub Actions sẽ build/package bản preview Windows từ nhánh PR để không cần cài bộ C++ Build Tools vào máy người dùng; chưa tạo tag hoặc GitHub Release công khai.
+- **Tiếp theo:** chờ CI, lấy installer `.exe`, cài Wavely v0.4.0 và xác nhận giao diện/khởi động; sau đó người dùng kiểm tra xuất video.
+
 ## 8. Tài liệu tham khảo
 
 - [FFmpeg showfreqs](https://ffmpeg.org/ffmpeg-filters.html#showfreqs) — chế độ bar/line/dot và các cài đặt phổ tần.
 - [FFmpeg showwaves](https://ffmpeg.org/ffmpeg-filters.html#showwaves) — chế độ hiển thị mẫu sóng âm.
+- [FFmpeg 6.1 showwaves source](https://ffmpeg.org/doxygen/6.1/avf__showwaves_8c_source.html) — định nghĩa `cline` là chế độ vẽ đường lấy mẫu quanh tâm.
 - [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) — yêu cầu build trên Windows và macOS.
 - [Tauri process model](https://v2.tauri.app/concept/process-model/) — WebView hệ thống và ảnh hưởng đến kích thước ứng dụng.
 - [Cargo build cache](https://doc.rust-lang.org/cargo/reference/build-cache.html) — vị trí và nội dung target/build artifacts.

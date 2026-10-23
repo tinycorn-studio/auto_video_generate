@@ -98,6 +98,11 @@
                 <span class="preset-text"><strong>Tối giản</strong><span>Đường sóng mảnh · giọng nói, podcast</span></span>
                 <span class="radio-indicator" aria-hidden="true"></span>
               </button>
+              <button class="preset-card" type="button" role="radio" aria-checked="false" data-style="balanced">
+                <span class="preset-sample balanced-sample" aria-hidden="true"><svg viewBox="0 0 72 28"><path d="M1 13v2 M5 11v6 M9 10v8 M13 7v14 M17 11v6 M21 9v10 M25 3v22 M29 10v8 M33 8v12 M37 5v18 M41 11v6 M45 7v14 M49 2v24 M53 9v10 M57 6v16 M61 10v8 M65 4v20 M69 11v6" /></svg></span>
+                <span class="preset-text"><strong>Cân xứng</strong><span>Sóng đối xứng · rõ cả trên và dưới trục giữa</span></span>
+                <span class="radio-indicator" aria-hidden="true"></span>
+              </button>
               <button class="preset-card" type="button" role="radio" aria-checked="false" data-style="spectrum">
                 <span class="preset-sample spectrum-sample" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
                 <span class="preset-text"><strong>Spectrum</strong><span>Cột tần số · nhạc, beat</span></span>
@@ -110,24 +115,25 @@
           <div class="field-group option-group position-group">
             <div class="field-heading">
               <label>Vị trí sóng âm</label>
-              <span class="field-hint">Căn giữa theo chiều ngang</span>
+              <span class="field-hint">Chọn trong khung hình</span>
             </div>
-            <div class="option-list option-list--three" role="radiogroup" aria-label="Vị trí sóng âm">
-              <button class="choice-card position-card" type="button" role="radio" aria-checked="false" data-position="top">
-                <span class="position-icon position-icon--top" aria-hidden="true"><i></i></span>
-                <span class="choice-copy"><strong>Trên</strong></span>
-                <span class="radio-indicator" aria-hidden="true"></span>
-              </button>
-              <button class="choice-card position-card" type="button" role="radio" aria-checked="false" data-position="center">
-                <span class="position-icon position-icon--center" aria-hidden="true"><i></i></span>
-                <span class="choice-copy"><strong>Giữa</strong></span>
-                <span class="radio-indicator" aria-hidden="true"></span>
-              </button>
-              <button class="choice-card position-card is-selected" type="button" role="radio" aria-checked="true" data-position="bottom">
-                <span class="position-icon position-icon--bottom" aria-hidden="true"><i></i></span>
-                <span class="choice-copy"><strong>Dưới</strong></span>
-                <span class="radio-indicator" aria-hidden="true"></span>
-              </button>
+            <div class="position-controls">
+              <div class="position-grid" role="radiogroup" aria-label="Vị trí sóng âm">
+                <button class="position-card" type="button" role="radio" aria-label="Trên trái" aria-checked="false" data-position="top-left" title="Trên trái"><span class="position-icon" aria-hidden="true"><i></i></span></button>
+                <button class="position-card" type="button" role="radio" aria-label="Trên giữa" aria-checked="false" data-position="top-center" title="Trên giữa"><span class="position-icon" aria-hidden="true"><i></i></span></button>
+                <button class="position-card" type="button" role="radio" aria-label="Trên phải" aria-checked="false" data-position="top-right" title="Trên phải"><span class="position-icon" aria-hidden="true"><i></i></span></button>
+                <button class="position-card" type="button" role="radio" aria-label="Giữa trái" aria-checked="false" data-position="center-left" title="Giữa trái"><span class="position-icon" aria-hidden="true"><i></i></span></button>
+                <button class="position-card" type="button" role="radio" aria-label="Chính giữa" aria-checked="false" data-position="center" title="Chính giữa"><span class="position-icon" aria-hidden="true"><i></i></span></button>
+                <button class="position-card" type="button" role="radio" aria-label="Giữa phải" aria-checked="false" data-position="center-right" title="Giữa phải"><span class="position-icon" aria-hidden="true"><i></i></span></button>
+                <button class="position-card" type="button" role="radio" aria-label="Dưới trái" aria-checked="false" data-position="bottom-left" title="Dưới trái"><span class="position-icon" aria-hidden="true"><i></i></span></button>
+                <button class="position-card" type="button" role="radio" aria-label="Dưới giữa" aria-checked="true" data-position="bottom-center" title="Dưới giữa"><span class="position-icon" aria-hidden="true"><i></i></span></button>
+                <button class="position-card" type="button" role="radio" aria-label="Dưới phải" aria-checked="false" data-position="bottom-right" title="Dưới phải"><span class="position-icon" aria-hidden="true"><i></i></span></button>
+              </div>
+              <div class="wave-scale-control">
+                <div class="field-heading"><label for="waveScale">Kích thước sóng</label><output id="waveScaleValue" for="waveScale">100%</output></div>
+                <input id="waveScale" type="range" min="25" max="100" step="5" value="100" aria-label="Kích thước sóng âm" />
+                <div class="scale-endpoints" aria-hidden="true"><span>Nhỏ</span><span>Lớn</span></div>
+              </div>
             </div>
           </div>
 
@@ -174,8 +180,11 @@
             </div>
             <img class="selected-image" id="selectedImage" alt="Ảnh nền xem trước" hidden />
             <div class="video-shade"></div>
-            <div class="video-wave" id="videoWave" data-position="bottom" aria-hidden="true">
-              <svg viewBox="0 0 320 72" preserveAspectRatio="none"><path d="M2 36 C14 36 14 29 23 29 S34 47 44 47 55 21 66 21 77 39 87 39 97 33 106 33 116 52 127 52 139 26 149 26 158 42 170 42 180 28 190 28 201 47 211 47 222 33 231 33 243 38 252 38 264 22 274 22 285 44 294 44 305 35 318 35" /></svg>
+            <div class="video-wave" id="videoWave" data-position="bottom-center" aria-hidden="true">
+              <svg viewBox="0 0 320 72" preserveAspectRatio="none">
+                <path class="minimal-wave" d="M2 36 C14 36 14 29 23 29 S34 47 44 47 55 21 66 21 77 39 87 39 97 33 106 33 116 52 127 52 139 26 149 26 158 42 170 42 180 28 190 28 201 47 211 47 222 33 231 33 243 38 252 38 264 22 274 22 285 44 294 44 305 35 318 35" />
+                <g class="balanced-wave" hidden><path class="wave-baseline" d="M0 36H320" /><path class="wave-pulses" d="M2 34v4 M7 32v8 M12 30v12 M17 27v18 M22 32v8 M27 29v14 M32 24v24 M37 31v10 M42 26v20 M47 20v32 M52 30v12 M57 27v18 M62 22v28 M67 31v10 M72 18v36 M77 27v18 M82 30v12 M87 24v24 M92 29v14 M97 21v30 M102 27v18 M107 31v10 M112 24v24 M117 15v42 M122 29v14 M127 25v22 M132 30v12 M137 18v36 M142 28v16 M147 23v26 M152 31v10 M157 19v34 M162 26v20 M167 29v14 M172 22v28 M177 31v10 M182 16v40 M187 26v20 M192 30v12 M197 24v24 M202 28v16 M207 18v36 M212 30v12 M217 25v22 M222 31v10 M227 21v30 M232 27v18 M237 17v38 M242 29v14 M247 24v24 M252 31v10 M257 20v32 M262 28v16 M267 14v44 M272 26v20 M277 30v12 M282 23v26 M287 31v10 M292 18v36 M297 27v18 M302 30v12 M307 24v24 M312 31v10 M318 28v16" /></g>
+              </svg>
               <span class="spectrum-bars" hidden><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
             </div>
             <div class="video-caption" id="videoCaption">Ảnh của bạn<br /><span>Sóng âm đồng bộ với bản thu</span></div>

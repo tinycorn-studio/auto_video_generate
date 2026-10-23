@@ -3,9 +3,9 @@ import { listen } from "@tauri-apps/api/event";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import "./style.css";
 
-type VisualizerStyle = "minimal" | "spectrum";
+type VisualizerStyle = "minimal" | "balanced" | "spectrum";
 type OutputFormat = "portrait" | "landscape";
-type WavePosition = "top" | "center" | "bottom";
+type WavePosition = "top-left" | "top-center" | "top-right" | "center-left" | "center" | "center-right" | "bottom-left" | "bottom-center" | "bottom-right";
 type EngineStatus = { available: boolean; version: string | null; message: string };
 type EngineInstallEvent = { status: "downloading" | "extracting" | "ready" | "cancelled" | "error"; percent: number; message: string };
 type RenderEvent = {
@@ -40,7 +40,7 @@ const renderLabel = byId<HTMLSpanElement>("renderLabel");
 const previewPlaceholder = byId<HTMLDivElement>("previewPlaceholder");
 const previewEmptyLabel = byId<HTMLDivElement>("previewEmptyLabel");
 const videoFrame = byId<HTMLDivElement>("videoFrame");
-const state = { imagePath: "", audioPath: "", style: "minimal" as VisualizerStyle, outputFormat: "portrait" as OutputFormat, wavePosition: "bottom" as WavePosition, engine: null as EngineStatus | null, jobId: "", busy: false, installing: false };
+const state = { imagePath: "", audioPath: "", style: "minimal" as VisualizerStyle, outputFormat: "portrait" as OutputFormat, wavePosition: "bottom-center" as WavePosition, waveScale: 100, engine: null as EngineStatus | null, jobId: "", busy: false, installing: false };
 
 function humanDuration(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return "—";
@@ -88,7 +88,8 @@ function updateRenderButton(): void {
   renderButton.disabled = state.busy || !state.imagePath || !state.audioPath || !state.engine?.available;
   imagePicker.disabled = state.busy;
   audioPicker.disabled = state.busy;
-  document.querySelectorAll<HTMLButtonElement>(".preset-card, .choice-card").forEach((button) => (button.disabled = state.busy));
+  document.querySelectorAll<HTMLButtonElement>(".preset-card, .choice-card, .position-card").forEach((button) => (button.disabled = state.busy));
+  byId<HTMLInputElement>("waveScale").disabled = state.busy;
 }
 
 function showError(message: string): void {
@@ -248,6 +249,7 @@ async function startRender(): Promise<void> {
       style: state.style,
       outputFormat: state.outputFormat,
       wavePosition: state.wavePosition,
+      waveScale: state.waveScale,
     });
     resultMessage.textContent = "Đang xuất video. Bạn có thể hủy nếu cần.";
     resultMessage.className = "result-message";
@@ -277,10 +279,20 @@ function updatePreset(style: VisualizerStyle): void {
     button.setAttribute("aria-checked", String(selected));
   });
   const spectrum = style === "spectrum";
-  byId("presetNote").textContent = spectrum ? "Cột tần số gọn, phù hợp nhạc và beat." : "Sóng mảnh, nhẹ và dễ nhìn trên nền ảnh.";
-  byId("videoWave").classList.toggle("is-spectrum", spectrum);
-  byId("videoWave").querySelector("svg")!.toggleAttribute("hidden", spectrum);
-  byId("videoWave").querySelector<HTMLElement>(".spectrum-bars")!.hidden = !spectrum;
+  const balanced = style === "balanced";
+  const wave = byId("videoWave");
+  byId("presetNote").textContent = spectrum
+    ? "Cột tần số gọn, phù hợp nhạc và beat."
+    : balanced
+      ? "Mỗi nhịp vươn đều lên trên và xuống dưới trục giữa."
+      : "Đường sóng mảnh, nhẹ và dễ nhìn trên nền ảnh.";
+  wave.classList.toggle("is-spectrum", spectrum);
+  wave.classList.toggle("is-balanced", balanced);
+  wave.querySelector("svg")!.toggleAttribute("hidden", spectrum);
+  wave.querySelector<SVGPathElement>(".minimal-wave")!.toggleAttribute("hidden", balanced);
+  wave.querySelector<SVGGElement>(".balanced-wave")!.toggleAttribute("hidden", !balanced);
+  wave.querySelector<HTMLElement>(".spectrum-bars")!.hidden = !spectrum;
+  updateWaveScale(state.waveScale);
   videoFrame.dataset.style = style;
 }
 
@@ -303,12 +315,28 @@ function updateOutputFormat(format: OutputFormat): void {
 
 function updateWavePosition(position: WavePosition): void {
   state.wavePosition = position;
-  document.querySelectorAll<HTMLButtonElement>(".choice-card[data-position]").forEach((button) => {
+  document.querySelectorAll<HTMLButtonElement>(".position-card[data-position]").forEach((button) => {
     const selected = button.dataset.position === position;
     button.classList.toggle("is-selected", selected);
     button.setAttribute("aria-checked", String(selected));
   });
-  byId("videoWave").dataset.position = position;
+  const wave = byId("videoWave");
+  const [vertical, horizontal = "center"] = position.split("-");
+  wave.dataset.position = position;
+  wave.style.left = horizontal === "left" ? "5.55%" : horizontal === "center" ? "50%" : "auto";
+  wave.style.right = horizontal === "right" ? "5.55%" : "auto";
+  wave.style.top = vertical === "top" ? "5%" : vertical === "center" ? "50%" : "auto";
+  wave.style.bottom = vertical === "bottom" ? "5%" : "auto";
+  wave.style.transform = `translate(${horizontal === "center" ? "-50%" : "0"}, ${vertical === "center" ? "-50%" : "0"})`;
+}
+
+function updateWaveScale(scale: number): void {
+  state.waveScale = Math.max(25, Math.min(100, Math.round(scale / 5) * 5));
+  byId<HTMLOutputElement>("waveScaleValue").value = `${state.waveScale}%`;
+  byId<HTMLInputElement>("waveScale").value = String(state.waveScale);
+  const wave = byId("videoWave");
+  wave.style.width = `${(8 / 9) * state.waveScale}%`;
+  wave.style.height = `${(state.style === "spectrum" ? 9.2 : 7.5) * state.waveScale / 100}%`;
 }
 
 function handleRenderEvent(event: RenderEvent): void {
@@ -350,9 +378,12 @@ async function init(): Promise<void> {
   document.querySelectorAll<HTMLButtonElement>(".choice-card[data-format]").forEach((button) => {
     button.addEventListener("click", () => updateOutputFormat(button.dataset.format as OutputFormat));
   });
-  document.querySelectorAll<HTMLButtonElement>(".choice-card[data-position]").forEach((button) => {
+  document.querySelectorAll<HTMLButtonElement>(".position-card[data-position]").forEach((button) => {
     button.addEventListener("click", () => updateWavePosition(button.dataset.position as WavePosition));
   });
+  byId<HTMLInputElement>("waveScale").addEventListener("input", (event) => updateWaveScale(Number((event.currentTarget as HTMLInputElement).value)));
+  updateWavePosition(state.wavePosition);
+  updateWaveScale(state.waveScale);
   byId<HTMLButtonElement>("playAudio").addEventListener("click", () => {
     if (audioElement.paused) void audioElement.play();
     else audioElement.pause();

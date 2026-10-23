@@ -1,6 +1,6 @@
 # Wavely
 
-Wavely ghép một ảnh với file ghi âm thành video MP4 có sóng âm đồng bộ. Có thể xuất video dọc hoặc ngang và chọn nhanh vị trí wave. Media được xử lý trực tiếp trên Windows hoặc macOS; không cần tài khoản, API AI hay tải file lên máy chủ.
+Wavely ghép một ảnh với file ghi âm thành video MP4 có sóng âm đồng bộ. Có thể xuất video dọc hoặc ngang, chọn kiểu sóng, đặt wave ở 9 vùng trong khung và thu nhỏ wave từ 25% đến 100%. Media được xử lý trực tiếp trên Windows hoặc macOS; không cần tài khoản, API AI hay tải file lên máy chủ.
 
 ## Yêu cầu hệ thống
 
@@ -40,8 +40,8 @@ Tauri chỉ tạo bundle cho hệ điều hành đang build. Installer Windows/m
 
 - Chọn một ảnh và một file âm thanh bằng hộp thoại native.
 - Xem trước ảnh, nghe thử audio và xem thời lượng.
-- Chọn nhanh đường sóng Tối giản hoặc cột phổ Spectrum.
-- Chọn vị trí wave phía trên, giữa hoặc phía dưới khung hình; xem trước thay đổi theo lựa chọn.
+- Chọn đường sóng Tối giản, sóng Cân xứng trên/dưới trục giữa hoặc cột phổ Spectrum.
+- Đặt wave ở 9 vùng của khung hình và chỉnh kích thước từ 25% đến 100%; xem trước thay đổi đồng bộ với video xuất.
 - Chọn MP4 dọc 1080 × 1920 hoặc ngang 1920 × 1080 ở 30 fps, H.264/AAC, CRF mặc định 21.
 - Theo dõi tiến độ, hủy render; video chỉ được đưa vào vị trí đích sau khi xuất thành công.
 - Tự căn giữa và crop ảnh để lấp khung 9:16 hoặc 16:9, không kéo méo ảnh.
@@ -70,11 +70,11 @@ FFmpeg là tiến trình native riêng, không phải thư viện nhúng vào Ru
 
 ## Lịch sử phiên bản
 
-Phiên bản hiện tại: **0.3.0**. Chi tiết ở [CHANGELOG.md](CHANGELOG.md).
+Phiên bản phát hành gần nhất: **0.3.0**. Chi tiết ở [CHANGELOG.md](CHANGELOG.md).
 
 ## Tải về
 
-Bản phát hành mới nhất: [Wavely v0.3.0](https://github.com/tinycorn-studio/auto_video_generate/releases/tag/v0.3.0). Bản này có tải FFmpeg trong ứng dụng, xuất video dọc/ngang và chọn vị trí wave.
+Bản phát hành mới nhất: [Wavely v0.3.0](https://github.com/tinycorn-studio/auto_video_generate/releases/tag/v0.3.0). Bản này có tải FFmpeg trong ứng dụng và xuất video dọc/ngang. Sóng Cân xứng, lưới 9 vị trí và chỉnh kích thước đang được chuẩn bị cho bản phát hành tiếp theo.
 
 - Windows x64: [bản cài .exe](https://github.com/tinycorn-studio/auto_video_generate/releases/download/v0.3.0/Wavely_0.3.0_x64-setup.exe) hoặc [bản cài .msi](https://github.com/tinycorn-studio/auto_video_generate/releases/download/v0.3.0/Wavely_0.3.0_x64_en-US.msi).
 - macOS Intel: [DMG](https://github.com/tinycorn-studio/auto_video_generate/releases/download/v0.3.0/Wavely_0.3.0_x64.dmg).
