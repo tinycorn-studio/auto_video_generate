@@ -1,7 +1,7 @@
 # Kế hoạch AutoVideoGenerator
 
 **Cập nhật lần cuối:** 2026-10-23
-**Trạng thái hiện tại:** Wavely v0.3.0 vẫn là bản cài trên Windows và release công khai mới nhất; mã nguồn cùng metadata v0.4.0 đã sẵn sàng cho CI; frontend build đạt, đang chờ GitHub Actions đóng gói installer Windows
+**Trạng thái hiện tại:** Wavely v0.3.0 vẫn là release công khai mới nhất; preview v0.4.0 đã build xanh trên Windows/macOS, được cài và mở trên Windows; đang chờ xác nhận xuất video thực tế
 **Mục tiêu:** Tạo ứng dụng desktop chạy trên Windows và macOS, ghép một file ghi âm với một ảnh thành video có sóng âm đồng bộ.
 
 ## 1. Yêu cầu sản phẩm
@@ -114,7 +114,7 @@ Các mốc được cập nhật tại đây cùng với thay đổi mã nguồn
 | **M5 · Windows/macOS** | Đang triển khai · CI build đạt trên ba mục tiêu; người dùng xác nhận render thành công; smoke test macOS còn chờ | Smoke test macOS Intel/Apple Silicon |
 | **M6 · Bản dùng thử** | **Hoàn thành · v0.1.0 và v0.3.0 đã phát hành** | Installer và changelog đã đính kèm; ghi nhận phản hồi sau khi chạy thực tế |
 | **M7 · Khổ và bố cục xuất** | Đã phát hành trong v0.3.0; người dùng xác nhận render thành công; chưa kiểm tra toàn bộ tổ hợp khổ/vị trí/preset | Chọn khổ dọc/ngang; preview và FFmpeg đồng bộ bố cục |
-| **M8 · Sóng cân xứng và điều chỉnh bố cục** | Mã nguồn và metadata v0.4.0 hoàn tất; `npm run build` đạt; đang chờ GitHub Actions xác nhận Rust build và tạo installer Windows | Kiểu sóng cân xứng `cline`, lưới 3 × 3 vị trí và scale 25–100% |
+| **M8 · Sóng cân xứng và điều chỉnh bố cục** | Preview v0.4.0 build xanh cả ba mục tiêu; installer Windows đã cài/mở thành công; chờ người dùng xác nhận render | Kiểu sóng cân xứng `cline`, lưới 3 × 3 vị trí và scale 25–100% |
 
 ## 5. Tiêu chí nghiệm thu
 
@@ -281,8 +281,11 @@ Khi có thay đổi, cập nhật cả bảng mốc ở trên và nhật ký sau
 - Rustup 1.29.1 và Cargo/Rust stable x64 được cài bằng winget theo yêu cầu cài Rust/Cargo trước đó. `cargo check` khởi chạy được nhưng không truy cập được `index.crates.io`; chưa xác nhận render thực tế. Trình duyệt preview tích hợp cũng không truy cập được server `127.0.0.1:1420`, nên giao diện chưa được nhìn trực tiếp trong phiên này.
 - Kiểm tra hệ thống không tìm thấy Microsoft C++ Build Tools, prerequisite của Tauri trên Windows.
 - Wavely đang cài tại `%LOCALAPPDATA%\Wavely\wavely.exe` và vẫn báo phiên bản 0.3.0; chưa thay app bằng build chứa feature mới.
-- GitHub Actions sẽ build/package bản preview Windows từ nhánh PR để không cần cài bộ C++ Build Tools vào máy người dùng; chưa tạo tag hoặc GitHub Release công khai.
-- **Tiếp theo:** chờ CI, lấy installer `.exe`, cài Wavely v0.4.0 và xác nhận giao diện/khởi động; sau đó người dùng kiểm tra xuất video.
+- PR [#2](https://github.com/tinycorn-studio/auto_video_generate/pull/2) trên nhánh `feature/wave-layout-v0.4.0-preview`; commit `bf8dcc3` chứa mã nguồn đã build.
+- GitHub Actions run [#12](https://github.com/tinycorn-studio/auto_video_generate/actions/runs/39920781588) thành công trên Windows x64, macOS Intel và Apple Silicon. Artifact Windows ZIP có SHA-256 `22b8c85e4a9590b23e62934bd039b93b62740dc5ce49bc8927cc735b900111b`.
+- Installer NSIS `Wavely_0.4.0_x64-setup.exe` cài thành công (exit code 0) vào `%LOCALAPPDATA%\Wavely`; file `wavely.exe` báo ProductVersion/FileVersion 0.4.0 và app đã được mở.
+- Chưa tạo tag hoặc GitHub Release công khai; bản 0.3.0 vẫn là release mới nhất. Rust/C++ toolchain trên máy không tham gia build installer.
+- **Tiếp theo:** người dùng kiểm tra preview sóng cân xứng, các vị trí/scale và xuất video thực tế; sau khi chốt mới merge PR và phát hành v0.4.0.
 
 ## 8. Tài liệu tham khảo
 
