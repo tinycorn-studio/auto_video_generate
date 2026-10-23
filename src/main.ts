@@ -362,7 +362,7 @@ async function init(): Promise<void> {
   audioElement.addEventListener("ended", () => (byId("playAudio").textContent = "▶"));
   await listen<RenderEvent>("render-progress", (event) => handleRenderEvent(event.payload));
   await listen<EngineInstallEvent>("ffmpeg-install-progress", (event) => void handleEngineInstallEvent(event.payload));
-  const version = await invoke<string>("app_version").catch(() => "0.2.0");
+  const version = await invoke<string>("app_version").catch(() => "0.3.0");
   byId("appVersion").textContent = version;
   await refreshEngineStatus();
 }

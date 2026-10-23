@@ -74,10 +74,10 @@ Phiên bản source đang chuẩn bị installer để review: **0.3.0**; bản 
 
 ## Tải về
 
-Installer ổn định hiện có: [Wavely v0.1.0](https://github.com/tinycorn-studio/auto_video_generate/releases/tag/v0.1.0). Installer v0.3.0 đang được build để review; GitHub Release sẽ được tạo khi phát hành theo tag sau khi CI và kiểm tra cài đặt hoàn tất.
+Installer ổn định hiện có: [Wavely v0.1.0](https://github.com/tinycorn-studio/auto_video_generate/releases/tag/v0.1.0). Bộ cài v0.3.0 đã được CI tạo làm artifact để review; GitHub Release sẽ được tạo khi phát hành theo tag sau khi kiểm tra cài đặt hoàn tất.
 
 - Windows x64: [bản cài .exe](https://github.com/tinycorn-studio/auto_video_generate/releases/download/v0.1.0/Wavely_0.1.0_x64-setup.exe) hoặc [bản cài .msi](https://github.com/tinycorn-studio/auto_video_generate/releases/download/v0.1.0/Wavely_0.1.0_x64_en-US.msi).
 - macOS Intel: [DMG](https://github.com/tinycorn-studio/auto_video_generate/releases/download/v0.1.0/Wavely_0.1.0_x64.dmg).
 - macOS Apple Silicon: [DMG](https://github.com/tinycorn-studio/auto_video_generate/releases/download/v0.1.0/Wavely_0.1.0_aarch64.dmg).
 
-Bản v0.1.0 chưa ký số/notarize và cần cài FFmpeg riêng. Bản v0.3.0 có trình tải FFmpeg trong ứng dụng, khổ video dọc/ngang và chọn vị trí wave; cần hoàn tất build và kiểm tra Windows/macOS trước khi phát hành.
+Bản v0.1.0 chưa ký số/notarize và cần cài FFmpeg riêng. Bản v0.3.0 có trình tải FFmpeg trong ứng dụng, khổ video dọc/ngang và chọn vị trí wave. CI đã build ba nền tảng; kiểm tra render và smoke test macOS còn chờ.
