@@ -1,7 +1,7 @@
 # Kế hoạch AutoVideoGenerator
 
 **Cập nhật lần cuối:** 2026-10-23
-**Trạng thái hiện tại:** CI run #8 đã xanh trên ba mục tiêu sau khi chạy lại job macOS Intel; người dùng xác nhận đã xuất được video v0.3.0; smoke test macOS còn chờ
+**Trạng thái hiện tại:** Wavely v0.3.0 đã phát hành với installer Windows và macOS; người dùng xác nhận xuất video thành công; smoke test macOS và benchmark còn chờ
 **Mục tiêu:** Tạo ứng dụng desktop chạy trên Windows và macOS, ghép một file ghi âm với một ảnh thành video có sóng âm đồng bộ.
 
 ## 1. Yêu cầu sản phẩm
@@ -109,9 +109,9 @@ Các mốc được cập nhật tại đây cùng với thay đổi mã nguồn
 | **M2 · Prototype FFmpeg** | Đang triển khai · filtergraph đã có, chưa chạy | Ảnh + audio → MP4; đo line và Spectrum, giữ audio đúng thời lượng |
 | **M3 · Vỏ ứng dụng** | Đang triển khai · đã thêm nút tải/cài FFmpeg và tiến độ, Rust chưa compile | Màn hình chọn file, preview, cài engine, xuất, tiến độ và hủy tác vụ |
 | **M4 · Tối ưu và chất lượng** | Chưa bắt đầu | Đo thời gian/RAM/file size, kiểm tra đồng bộ âm thanh, màu sắc, crop và phát lại |
-| **M5 · Windows/macOS** | Đang triển khai · CI v0.3.0 đạt trên ba mục tiêu; người dùng xác nhận render video thành công; smoke test macOS còn chờ | Smoke test macOS Intel/Apple Silicon |
-| **M6 · Bản dùng thử** | **Hoàn thành · v0.1.0 đã phát hành** | Installer và changelog đã đính kèm; ghi nhận phản hồi sau khi chạy thực tế |
-| **M7 · Khổ và bố cục xuất** | CI run #8 build đạt trên ba mục tiêu; người dùng xác nhận render video thành công | Chọn khổ dọc/ngang và vị trí wave; preview, crop và FFmpeg dùng chung lựa chọn |
+| **M5 · Windows/macOS** | Đang triển khai · CI build đạt trên ba mục tiêu; người dùng xác nhận render thành công; smoke test macOS còn chờ | Smoke test macOS Intel/Apple Silicon |
+| **M6 · Bản dùng thử** | **Hoàn thành · v0.1.0 và v0.3.0 đã phát hành** | Installer và changelog đã đính kèm; ghi nhận phản hồi sau khi chạy thực tế |
+| **M7 · Khổ và bố cục xuất** | Đã phát hành trong v0.3.0; người dùng xác nhận render thành công; chưa kiểm tra toàn bộ tổ hợp khổ/vị trí/preset | Chọn khổ dọc/ngang và vị trí wave; preview, crop và FFmpeg dùng chung lựa chọn |
 
 ## 5. Tiêu chí nghiệm thu
 
@@ -259,6 +259,14 @@ Khi có thay đổi, cập nhật cả bảng mốc ở trên và nhật ký sau
 - Cập nhật README sang bộ cài v0.3.0 và sửa tiêu đề release notes cho phù hợp cả video dọc/ngang.
 - Chưa smoke test ứng dụng trên máy macOS; bộ cài macOS được build trên runner CI. Chưa tạo tag/GitHub Release.
 - **Tiếp theo:** hoàn tất CI sau cập nhật tài liệu, merge PR đã review vào `main`, đẩy tag `v0.3.0` và kiểm tra đủ installer trong GitHub Release.
+
+#### 2026-10-23 · Phát hành Wavely v0.3.0
+
+- Người dùng xác nhận đã xuất video thành công bằng Wavely v0.3.0.
+- CI run [#9](https://github.com/tinycorn-studio/auto_video_generate/actions/runs/39916035806) xanh trên Windows x64, macOS Intel và Apple Silicon; PR [#1](https://github.com/tinycorn-studio/auto_video_generate/pull/1) đã merge vào `main` tại commit `5eece92`.
+- Tag annotated `v0.3.0` đã được đẩy. [Release workflow](https://github.com/tinycorn-studio/auto_video_generate/actions/runs/39916739948) thành công; [GitHub Release v0.3.0](https://github.com/tinycorn-studio/auto_video_generate/releases/tag/v0.3.0) có Windows `.exe`/`.msi`, macOS Intel `.dmg` và macOS Apple Silicon `.dmg`.
+- Smoke test trực tiếp trên macOS và benchmark thời gian/RAM chưa thực hiện; CI xác nhận build/package chứ không thay thế kiểm tra chạy app trên máy Mac.
+- **Tiếp theo:** smoke test app trên macOS Intel/Apple Silicon; benchmark clip 1 và 5 phút ở hai khổ Full HD; kiểm tra các tổ hợp vị trí wave và preset.
 
 ## 8. Tài liệu tham khảo
 
