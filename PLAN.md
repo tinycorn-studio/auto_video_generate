@@ -1,7 +1,7 @@
 # Kế hoạch AutoVideoGenerator
 
 **Cập nhật lần cuối:** 2026-10-23
-**Trạng thái hiện tại:** CI run #7 đã build installer v0.3.0 cho ba mục tiêu; Windows đã cài bản mới từ artifact; kiểm tra render và smoke test macOS còn chờ
+**Trạng thái hiện tại:** CI run #8 đã xanh trên ba mục tiêu sau khi chạy lại job macOS Intel; người dùng xác nhận đã xuất được video v0.3.0; smoke test macOS còn chờ
 **Mục tiêu:** Tạo ứng dụng desktop chạy trên Windows và macOS, ghép một file ghi âm với một ảnh thành video có sóng âm đồng bộ.
 
 ## 1. Yêu cầu sản phẩm
@@ -109,9 +109,9 @@ Các mốc được cập nhật tại đây cùng với thay đổi mã nguồn
 | **M2 · Prototype FFmpeg** | Đang triển khai · filtergraph đã có, chưa chạy | Ảnh + audio → MP4; đo line và Spectrum, giữ audio đúng thời lượng |
 | **M3 · Vỏ ứng dụng** | Đang triển khai · đã thêm nút tải/cài FFmpeg và tiến độ, Rust chưa compile | Màn hình chọn file, preview, cài engine, xuất, tiến độ và hủy tác vụ |
 | **M4 · Tối ưu và chất lượng** | Chưa bắt đầu | Đo thời gian/RAM/file size, kiểm tra đồng bộ âm thanh, màu sắc, crop và phát lại |
-| **M5 · Windows/macOS** | Đang triển khai · CI v0.3.0 đạt trên ba mục tiêu; Windows đã cài; render và smoke test macOS còn chờ | Xuất video mẫu trên Windows; smoke test macOS Intel/Apple Silicon |
+| **M5 · Windows/macOS** | Đang triển khai · CI v0.3.0 đạt trên ba mục tiêu; người dùng xác nhận render video thành công; smoke test macOS còn chờ | Smoke test macOS Intel/Apple Silicon |
 | **M6 · Bản dùng thử** | **Hoàn thành · v0.1.0 đã phát hành** | Installer và changelog đã đính kèm; ghi nhận phản hồi sau khi chạy thực tế |
-| **M7 · Khổ và bố cục xuất** | CI run #7 build đạt trên ba mục tiêu; render đầu ra kiểm tra còn chờ | Chọn khổ dọc/ngang và vị trí wave; preview, crop và FFmpeg dùng chung lựa chọn |
+| **M7 · Khổ và bố cục xuất** | CI run #8 build đạt trên ba mục tiêu; người dùng xác nhận render video thành công | Chọn khổ dọc/ngang và vị trí wave; preview, crop và FFmpeg dùng chung lựa chọn |
 
 ## 5. Tiêu chí nghiệm thu
 
@@ -251,6 +251,14 @@ Khi có thay đổi, cập nhật cả bảng mốc ở trên và nhật ký sau
 - Source và tiến độ đã được commit/push trên `feat/ffmpeg-engine-setup`; commit này chỉ cập nhật trạng thái tài liệu sau source commit CI nêu trên.
 - Chưa tạo tag/GitHub Release. Chưa xuất video mẫu trên Windows hoặc chạy smoke test macOS; hai kiểm tra này vẫn cần trước khi phát hành.
 - **Tiếp theo:** kiểm tra engine FFmpeg và render video mẫu trên Windows, sau đó smoke test trên macOS Intel/Apple Silicon.
+
+#### 2026-10-23 · Chuẩn bị phát hành Wavely v0.3.0
+
+- Người dùng xác nhận đã xuất được video bằng Wavely v0.3.0.
+- [CI run #8](https://github.com/tinycorn-studio/auto_video_generate/actions/runs/39903574933) xanh trên Windows x64, macOS Intel và Apple Silicon; job macOS Intel cần chạy lại do runner trước đó không tháo được disk image.
+- Cập nhật README sang bộ cài v0.3.0 và sửa tiêu đề release notes cho phù hợp cả video dọc/ngang.
+- Chưa smoke test ứng dụng trên máy macOS; bộ cài macOS được build trên runner CI. Chưa tạo tag/GitHub Release.
+- **Tiếp theo:** hoàn tất CI sau cập nhật tài liệu, merge PR đã review vào `main`, đẩy tag `v0.3.0` và kiểm tra đủ installer trong GitHub Release.
 
 ## 8. Tài liệu tham khảo
 

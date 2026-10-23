@@ -70,14 +70,14 @@ FFmpeg là tiến trình native riêng, không phải thư viện nhúng vào Ru
 
 ## Lịch sử phiên bản
 
-Phiên bản source đang chuẩn bị installer để review: **0.3.0**; bản phát hành ổn định gần nhất là **0.1.0**. Chi tiết ở [CHANGELOG.md](CHANGELOG.md).
+Phiên bản hiện tại: **0.3.0**. Chi tiết ở [CHANGELOG.md](CHANGELOG.md).
 
 ## Tải về
 
-Installer ổn định hiện có: [Wavely v0.1.0](https://github.com/tinycorn-studio/auto_video_generate/releases/tag/v0.1.0). CI run [#7](https://github.com/tinycorn-studio/auto_video_generate/actions/runs/39903024585) đã tạo bộ cài v0.3.0 cho Windows và macOS; bản Windows đã cài và xác nhận phiên bản. GitHub Release sẽ được tạo theo tag sau khi kiểm tra render và smoke test macOS hoàn tất.
+Bản phát hành mới nhất: [Wavely v0.3.0](https://github.com/tinycorn-studio/auto_video_generate/releases/tag/v0.3.0). Bản này có tải FFmpeg trong ứng dụng, xuất video dọc/ngang và chọn vị trí wave.
 
-- Windows x64: [bản cài .exe](https://github.com/tinycorn-studio/auto_video_generate/releases/download/v0.1.0/Wavely_0.1.0_x64-setup.exe) hoặc [bản cài .msi](https://github.com/tinycorn-studio/auto_video_generate/releases/download/v0.1.0/Wavely_0.1.0_x64_en-US.msi).
-- macOS Intel: [DMG](https://github.com/tinycorn-studio/auto_video_generate/releases/download/v0.1.0/Wavely_0.1.0_x64.dmg).
-- macOS Apple Silicon: [DMG](https://github.com/tinycorn-studio/auto_video_generate/releases/download/v0.1.0/Wavely_0.1.0_aarch64.dmg).
+- Windows x64: [bản cài .exe](https://github.com/tinycorn-studio/auto_video_generate/releases/download/v0.3.0/Wavely_0.3.0_x64-setup.exe) hoặc [bản cài .msi](https://github.com/tinycorn-studio/auto_video_generate/releases/download/v0.3.0/Wavely_0.3.0_x64_en-US.msi).
+- macOS Intel: [DMG](https://github.com/tinycorn-studio/auto_video_generate/releases/download/v0.3.0/Wavely_0.3.0_x64.dmg).
+- macOS Apple Silicon: [DMG](https://github.com/tinycorn-studio/auto_video_generate/releases/download/v0.3.0/Wavely_0.3.0_aarch64.dmg).
 
-Bản v0.1.0 chưa ký số/notarize và cần cài FFmpeg riêng. Bản v0.3.0 có trình tải FFmpeg trong ứng dụng, khổ video dọc/ngang và chọn vị trí wave. CI đã build ba nền tảng; kiểm tra render và smoke test macOS còn chờ.
+Bộ cài v0.3.0 chưa ký số/notarize; Windows có thể hiện SmartScreen và macOS có thể yêu cầu xác nhận mở lần đầu. CI đã build trên macOS Intel và Apple Silicon; smoke test chạy trực tiếp trên macOS vẫn chưa thực hiện.
