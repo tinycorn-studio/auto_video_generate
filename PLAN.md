@@ -1,7 +1,7 @@
 # Kế hoạch AutoVideoGenerator
 
 **Cập nhật lần cuối:** 2026-10-23
-**Trạng thái hiện tại:** source đã nâng lên v0.3.0; CI build installer và cài bản Windows mới đang chờ
+**Trạng thái hiện tại:** CI run #6 đã build installer v0.3.0 cho ba mục tiêu; Windows đã cài bản mới; kiểm tra render và macOS còn chờ
 **Mục tiêu:** Tạo ứng dụng desktop chạy trên Windows và macOS, ghép một file ghi âm với một ảnh thành video có sóng âm đồng bộ.
 
 ## 1. Yêu cầu sản phẩm
@@ -109,9 +109,9 @@ Các mốc được cập nhật tại đây cùng với thay đổi mã nguồn
 | **M2 · Prototype FFmpeg** | Đang triển khai · filtergraph đã có, chưa chạy | Ảnh + audio → MP4; đo line và Spectrum, giữ audio đúng thời lượng |
 | **M3 · Vỏ ứng dụng** | Đang triển khai · đã thêm nút tải/cài FFmpeg và tiến độ, Rust chưa compile | Màn hình chọn file, preview, cài engine, xuất, tiến độ và hủy tác vụ |
 | **M4 · Tối ưu và chất lượng** | Chưa bắt đầu | Đo thời gian/RAM/file size, kiểm tra đồng bộ âm thanh, màu sắc, crop và phát lại |
-| **M5 · Windows/macOS** | Đang triển khai · CI installer đạt trên ba mục tiêu; Windows đã cài/mở; kiểm tra engine và render còn chờ | Hoàn tất tải FFmpeg, xuất video mẫu trên Windows; smoke test macOS Intel/Apple Silicon |
+| **M5 · Windows/macOS** | Đang triển khai · CI v0.3.0 đạt trên ba mục tiêu; Windows đã cài; engine/render và smoke test macOS còn chờ | Xuất video mẫu trên Windows; smoke test macOS Intel/Apple Silicon |
 | **M6 · Bản dùng thử** | **Hoàn thành · v0.1.0 đã phát hành** | Installer và changelog đã đính kèm; ghi nhận phản hồi sau khi chạy thực tế |
-| **M7 · Khổ và bố cục xuất** | Đã triển khai trong source · CI build và render kiểm tra còn chờ | Chọn khổ dọc/ngang và vị trí wave; preview, crop và FFmpeg dùng chung lựa chọn |
+| **M7 · Khổ và bố cục xuất** | CI build đạt trên ba mục tiêu; render đầu ra kiểm tra còn chờ | Chọn khổ dọc/ngang và vị trí wave; preview, crop và FFmpeg dùng chung lựa chọn |
 
 ## 5. Tiêu chí nghiệm thu
 
@@ -239,8 +239,10 @@ Khi có thay đổi, cập nhật cả bảng mốc ở trên và nhật ký sau
 
 - Đồng bộ `VERSION`, metadata npm, Cargo và Tauri lên `0.3.0` bằng `npm run version:set -- 0.3.0`.
 - Chuyển ghi chú khổ xuất và vị trí wave vào `CHANGELOG.md` dưới mục `0.3.0`; cập nhật README về trạng thái bản cài.
-- Chưa tạo tag/release công khai; installer được tạo từ CI để cài thử trước.
-- **Tiếp theo:** commit và push thay đổi, chờ CI ba nền tảng; tải installer Windows, cài bản mới và ghi kết quả.
+- Commit `f0c1a6e` đã push lên `feat/ffmpeg-engine-setup`; [CI run #6](https://github.com/tinycorn-studio/auto_video_generate/actions/runs/39902478541) thành công trên Windows x64, macOS Intel và Apple Silicon.
+- Artifact Windows có SHA-256 `0209bb8ab8e424bf7ce413797c32dcbcfaf9ee0ca4389e03e0be25e531a4a12c`; bộ cài NSIS chạy thành công và `wavely.exe` báo ProductVersion/FileVersion `0.3.0` tại `%LOCALAPPDATA%\Wavely\wavely.exe`.
+- Chưa tạo tag/GitHub Release. Chưa xuất video mẫu hoặc kiểm tra giao diện/renderer trên macOS.
+- **Tiếp theo:** push cập nhật nhỏ phiên bản dự phòng trong giao diện, chờ CI cho HEAD mới; sau đó xuất video mẫu trên Windows và ghi nhận smoke test macOS trước release.
 
 ## 8. Tài liệu tham khảo
 
