@@ -73,4 +73,10 @@ Phiên bản hiện tại: **0.1.0**. Chi tiết ở [CHANGELOG.md](CHANGELOG.md
 
 ## Tải về
 
-Installer được phát hành trong mục [GitHub Releases](https://github.com/tinycorn-studio/auto_video_generate/releases). CI compile đã thành công trên Windows x64, macOS Intel và Apple Silicon; release workflow sẽ build installer khi có tag SemVer. Bản đầu chưa ký số/notarize và cần cài FFmpeg riêng. Cần thử thao tác render thực tế sau khi cài.
+Tải [Wavely v0.1.0](https://github.com/tinycorn-studio/auto_video_generate/releases/tag/v0.1.0):
+
+- Windows x64: [bản cài .exe](https://github.com/tinycorn-studio/auto_video_generate/releases/download/v0.1.0/Wavely_0.1.0_x64-setup.exe) hoặc [bản cài .msi](https://github.com/tinycorn-studio/auto_video_generate/releases/download/v0.1.0/Wavely_0.1.0_x64_en-US.msi).
+- macOS Intel: [DMG](https://github.com/tinycorn-studio/auto_video_generate/releases/download/v0.1.0/Wavely_0.1.0_x64.dmg).
+- macOS Apple Silicon: [DMG](https://github.com/tinycorn-studio/auto_video_generate/releases/download/v0.1.0/Wavely_0.1.0_aarch64.dmg).
+
+Bản đầu chưa ký số/notarize và cần cài FFmpeg riêng. Cần thử thao tác render thực tế sau khi cài.

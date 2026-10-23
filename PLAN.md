@@ -1,7 +1,7 @@
 # Kế hoạch AutoVideoGenerator
 
 **Cập nhật lần cuối:** 2026-10-23
-**Trạng thái hiện tại:** Mã nguồn v0.1.0 và CI compile đã đạt trên Windows x64, macOS Intel và Apple Silicon; đóng gói installer, kiểm tra FFmpeg thực tế và benchmark còn chờ
+**Trạng thái hiện tại:** CI và đóng gói installer v0.1.0 đã thành công trên Windows x64, macOS Intel và Apple Silicon; kiểm tra FFmpeg thực tế, smoke test và benchmark còn chờ
 **Mục tiêu:** Tạo ứng dụng desktop chạy trên Windows và macOS, ghép một file ghi âm với một ảnh dọc thành video có sóng âm đồng bộ.
 
 ## 1. Yêu cầu sản phẩm
@@ -107,8 +107,8 @@ Các mốc được cập nhật tại đây cùng với thay đổi mã nguồn
 | **M2 · Prototype FFmpeg** | Đang triển khai · filtergraph đã có, chưa chạy | Ảnh + audio → MP4; đo line và Spectrum, giữ audio đúng thời lượng |
 | **M3 · Vỏ ứng dụng** | Đang triển khai · source đã có, Rust chưa compile | Màn hình chọn file, preview, lỗi FFmpeg, xuất, tiến độ và hủy tác vụ |
 | **M4 · Tối ưu và chất lượng** | Chưa bắt đầu | Đo thời gian/RAM/file size, kiểm tra đồng bộ âm thanh, màu sắc, crop và phát lại |
-| **M5 · Windows/macOS** | Đang triển khai · CI compile đạt trên ba mục tiêu, installer chưa đóng gói | Tạo installer từ tag, sau đó ghi nhận checklist smoke test Windows/macOS Intel/Apple Silicon |
-| **M6 · Bản dùng thử** | Đang triển khai · source đã lên GitHub, release workflow đang chờ tag | Tạo release đầu có installer, kiểm tra asset/changelog, tiếp tục smoke test và ghi nhận giới hạn |
+| **M5 · Windows/macOS** | Đang triển khai · CI compile và installer đạt trên ba mục tiêu; smoke test còn chờ | Cài và thử app trên Windows, macOS Intel/Apple Silicon; xác nhận gọi FFmpeg và xuất video mẫu |
+| **M6 · Bản dùng thử** | **Hoàn thành · v0.1.0 đã phát hành** | Installer và changelog đã đính kèm; ghi nhận phản hồi sau khi chạy thực tế |
 
 ## 5. Tiêu chí nghiệm thu
 
@@ -194,6 +194,14 @@ Khi có thay đổi, cập nhật cả bảng mốc ở trên và nhật ký sau
 - [GitHub Actions run #1](https://github.com/tinycorn-studio/auto_video_generate/actions/runs/39890146126) thành công: Tauri compile đạt trên Windows x64, macOS Intel và macOS Apple Silicon.
 - Đây mới là xác nhận compile app; chưa đóng gói installer, chưa chạy app GUI/FFmpeg, chưa xuất video mẫu và chưa benchmark.
 - **Tiếp theo:** tạo tag `v0.1.0` để chạy release workflow, kiểm tra installers và release notes, sau đó thử thực tế FFmpeg trên Windows/macOS.
+
+#### 2026-10-23 · Release v0.1.0
+
+- Đã tạo annotated tag `v0.1.0`; [release workflow](https://github.com/tinycorn-studio/auto_video_generate/actions/runs/39890956368) thành công trên Windows, macOS Intel và Apple Silicon.
+- [GitHub Release v0.1.0](https://github.com/tinycorn-studio/auto_video_generate/releases/tag/v0.1.0) có đủ bốn installer: Windows `.exe`/`.msi`, macOS Intel `.dmg`, macOS Apple Silicon `.dmg`; dung lượng từng file khoảng 2–3 MB.
+- Release notes được tạo tự động từ mục `[0.1.0]` trong `CHANGELOG.md`; installer chưa ký số/notarize và cần cài FFmpeg 6+ riêng.
+- Chưa chạy GUI hoặc render media trên máy thật; cần smoke test Windows/macOS và benchmark theo tiêu chí M4.
+- **Tiếp theo:** cài đúng gói theo hệ điều hành, cài FFmpeg, tạo một video mẫu rồi ghi thời gian render/chất lượng/khả năng phát lại.
 
 ## 8. Tài liệu tham khảo
 
