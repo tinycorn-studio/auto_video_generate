@@ -84,6 +84,19 @@ h1 { margin: 10px 0 8px; font: 700 29px/1.2 "Manrope", sans-serif; letter-spacin
 .output-summary small { color: var(--muted); font-size: 10px; }
 .quality-badge { padding: 5px 7px; color: var(--green); background: #e5f5ef; border-radius: 7px; font-size: 10px; font-weight: 600; }
 .render-area { margin-top: 17px; }
+.engine-setup { margin-bottom: 10px; padding: 12px; background: var(--soft); border: 1px solid var(--border); border-radius: 10px; }
+.engine-setup[hidden] { display: none; }
+.engine-setup > strong { display: block; font-size: 12px; }
+.engine-setup > p { margin: 5px 0 10px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.engine-setup > small { display: block; margin-top: 8px; color: var(--muted); font-size: 9px; line-height: 1.45; }
+.engine-actions { display: flex; gap: 8px; }
+.engine-install-button, .engine-cancel-button { min-height: 35px; padding: 0 12px; border: 0; border-radius: 8px; font-size: 11px; font-weight: 600; cursor: pointer; }
+.engine-install-button { flex: 1; color: #fff; background: #5559d9; }
+.engine-install-button:hover:not(:disabled) { background: #4549c5; }
+.engine-install-button:disabled, .engine-cancel-button:disabled { opacity: .6; cursor: wait; }
+.engine-cancel-button { color: var(--muted); background: var(--panel); border: 1px solid var(--border); }
+.engine-progress { margin-top: 12px; }
+.engine-progress[hidden] { display: none; }
 .render-button { width: 100%; min-height: 46px; display: flex; align-items: center; justify-content: center; gap: 9px; color: #fff; background: #5559d9; border: 0; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .15s, transform .15s; }
 .render-button:hover:not(:disabled) { background: #4549c5; transform: translateY(-1px); }
 .render-button:disabled { color: #8589a4; background: #e2e3ed; cursor: not-allowed; }
@@ -138,6 +151,8 @@ h1 { margin: 10px 0 8px; font: 700 29px/1.2 "Manrope", sans-serif; letter-spacin
   .preset-card:hover { border-color: #5559a3; }
   .quality-badge { background: #1f392f; }
   .render-button:disabled { color: #777b92; background: #292c37; }
+  .engine-install-button { background: #666be6; }
+  .engine-install-button:hover:not(:disabled) { background: #777bea; }
 }
 
 @media (max-width: 900px) {

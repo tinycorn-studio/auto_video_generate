@@ -11,7 +11,10 @@ Wavely dùng SemVer (`MAJOR.MINOR.PATCH`) và [Keep a Changelog](https://keepach
 - Không commit `node_modules/`, `dist/`, `src-tauri/target/`, installer, file media đầu vào/đầu ra hay token.
 - Chỉ gắn tag lên commit đã có README/CHANGELOG hoàn chỉnh và đã review.
 
-## Tạo release
+## Tạo build để review và phát hành
+
+- Pull request build installer trên ba runner và lưu `.exe`, `.msi`, `.dmg` dưới dạng GitHub Actions artifacts để cài thử trước release.
+- Chỉ tạo tag phát hành sau khi CI xanh, cài thử bản Windows/macOS phù hợp và cập nhật ghi nhận trong `PLAN.md`.
 
 1. Hoàn tất và commit feature trên nhánh của feature; merge `--ff-only` về `main` sau review.
 2. Chọn mức SemVer phù hợp: patch cho sửa tương thích, minor cho tính năng tương thích, major cho thay đổi phá vỡ tương thích.
@@ -32,8 +35,8 @@ Wavely dùng SemVer (`MAJOR.MINOR.PATCH`) và [Keep a Changelog](https://keepach
 
 - macOS: tải đúng kiến trúc, mở DMG và kéo Wavely vào Applications. Lần đầu, control-click app rồi chọn **Open** nếu Gatekeeper hỏi.
 - Windows: chạy `.exe` hoặc `.msi` tải từ GitHub Release; có thể cần xác nhận SmartScreen khi app chưa được ký số.
-- Cài FFmpeg 6 trở lên riêng theo README. Release hiện không gói FFmpeg vào installer.
+- Nếu máy chưa có FFmpeg, mở Wavely và bấm **Tải engine FFmpeg**. Tải lần đầu cần Internet; engine được lưu trong app data và các lần xuất video sau đó chạy offline. Nguồn/hash/license được ghi trong `THIRD_PARTY_NOTICES.md`.
 
 ## Release đầu tiên
 
-Repo nguồn là [tinycorn-studio/auto_video_generate](https://github.com/tinycorn-studio/auto_video_generate). CI build app trên Windows x64, macOS Intel và Apple Silicon khi push/PR vào `main`; release workflow build installer theo tag sau khi CI compile thành công. Bản [v0.1.0](https://github.com/tinycorn-studio/auto_video_generate/releases/tag/v0.1.0) đã được tạo và có Windows `.exe`/`.msi`, macOS Intel `.dmg`, macOS Apple Silicon `.dmg`. Ghi nhận smoke test Windows/macOS và kết quả render vào `PLAN.md` sau khi cài đặt. Máy phát triển không cần có Rust nếu build chạy qua GitHub Actions.
+Repo nguồn là [tinycorn-studio/auto_video_generate](https://github.com/tinycorn-studio/auto_video_generate). CI build installer trên Windows x64, macOS Intel và Apple Silicon khi có pull request; artifacts dùng để review/cài thử. Release workflow tạo GitHub Release theo tag SemVer. Bản [v0.1.0](https://github.com/tinycorn-studio/auto_video_generate/releases/tag/v0.1.0) đã được tạo. Ghi nhận smoke test Windows/macOS và kết quả render vào `PLAN.md` sau khi cài đặt. Máy phát triển không cần có Rust nếu build chạy qua GitHub Actions.

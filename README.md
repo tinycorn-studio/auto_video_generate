@@ -5,11 +5,11 @@ Wavely ghép một ảnh dọc với file ghi âm thành video MP4 có sóng âm
 ## Yêu cầu hệ thống
 
 - Windows 10/11 64-bit hoặc macOS 13 trở lên.
-- FFmpeg 6 trở lên, có các filter `showwaves`, `showfreqs` và encoder `libx264`, `aac`.
+- FFmpeg 6 trở lên, có các filter `showwaves`, `showfreqs` và encoder H.264/AAC. Có thể dùng FFmpeg cài sẵn hoặc tải engine trong ứng dụng.
 - Đầu vào: JPG/PNG/WebP/BMP và WAV/MP3/M4A/AAC/FLAC/OGG/Opus.
-- Kết nối Internet chỉ cần khi cài công cụ phát triển hoặc cập nhật dependency; thao tác tạo video chạy offline.
+- Kết nối Internet chỉ cần khi tải engine lần đầu hoặc cập nhật dependency; các lần tạo video sau đó chạy offline.
 
-Wavely không tải FFmpeg ngầm và không kèm một bản FFmpeg bên thứ ba trong installer. Trên Windows có thể cài bản đầy đủ bằng `winget install --id Gyan.FFmpeg -e`; trên macOS dùng `brew install ffmpeg` nếu đã cài Homebrew. Sau khi cài, bảo đảm lệnh `ffmpeg` có trong `PATH` rồi mở lại Wavely. Có thể tải thủ công từ [ffmpeg.org](https://ffmpeg.org/download.html).
+Nếu chưa có FFmpeg, bấm **Tải engine FFmpeg** trong Wavely. Ứng dụng chỉ tải sau khi bạn chủ động bấm nút, xác minh SHA-256 của gói FFmpeg 9.0.2, rồi lưu riêng file engine trong thư mục dữ liệu ứng dụng. Archive tạm được xóa sau cài đặt. Lần tải đầu cần Internet; các lần xuất tiếp theo chạy offline và file ảnh/âm thanh không rời máy. FFmpeg cài sẵn trong `PATH` vẫn được hỗ trợ. Có thể cài thủ công bằng `winget install --id Gyan.FFmpeg -e` trên Windows hoặc `brew install ffmpeg` trên macOS. Nguồn build và thông tin license được ghi trong [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Build và chạy
 
@@ -19,7 +19,7 @@ Wavely không tải FFmpeg ngầm và không kèm một bản FFmpeg bên thứ 
 - Rust stable với Cargo.
 - Windows: Microsoft C++ Build Tools và WebView2 Runtime.
 - macOS: Xcode Command Line Tools.
-- FFmpeg 6 trở lên cho tính năng xuất video.
+- FFmpeg 6 trở lên cho tính năng xuất video; người dùng cuối có thể cài một lần ngay trong Wavely.
 
 ### Chạy giao diện desktop khi phát triển
 
@@ -56,7 +56,7 @@ Chưa có phím tắt riêng trong phiên bản đầu.
 - `VERSION`: nguồn version duy nhất; `scripts/sync-version.mjs` đồng bộ metadata npm, Cargo và Tauri trước khi build.
 - `PLAN.md`: mục tiêu, tiêu chí chất lượng và trạng thái các mốc triển khai.
 
-FFmpeg là tiến trình native riêng, không phải thư viện nhúng vào Rust. V1 dò FFmpeg trong `PATH` và các vị trí cài phổ biến; file ảnh, audio, video tạm và video cuối đều ở trên máy.
+FFmpeg là tiến trình native riêng, không phải thư viện nhúng vào Rust. Wavely dò engine đã tải trong app data, resource đóng gói, `PATH` và một số vị trí cài phổ biến. File ảnh, audio, video tạm và video cuối đều ở trên máy.
 
 ## Cấu hình và giới hạn
 
@@ -69,14 +69,14 @@ FFmpeg là tiến trình native riêng, không phải thư viện nhúng vào Ru
 
 ## Lịch sử phiên bản
 
-Phiên bản hiện tại: **0.1.0**. Chi tiết ở [CHANGELOG.md](CHANGELOG.md).
+Phiên bản source đang chuẩn bị: **0.2.0**; bản phát hành ổn định gần nhất là **0.1.0**. Chi tiết ở [CHANGELOG.md](CHANGELOG.md).
 
 ## Tải về
 
-Tải [Wavely v0.1.0](https://github.com/tinycorn-studio/auto_video_generate/releases/tag/v0.1.0):
+Installer ổn định hiện có: [Wavely v0.1.0](https://github.com/tinycorn-studio/auto_video_generate/releases/tag/v0.1.0). Installer v0.2.0 sẽ được đính kèm GitHub Release sau khi CI xác nhận build và phát hành theo tag.
 
 - Windows x64: [bản cài .exe](https://github.com/tinycorn-studio/auto_video_generate/releases/download/v0.1.0/Wavely_0.1.0_x64-setup.exe) hoặc [bản cài .msi](https://github.com/tinycorn-studio/auto_video_generate/releases/download/v0.1.0/Wavely_0.1.0_x64_en-US.msi).
 - macOS Intel: [DMG](https://github.com/tinycorn-studio/auto_video_generate/releases/download/v0.1.0/Wavely_0.1.0_x64.dmg).
 - macOS Apple Silicon: [DMG](https://github.com/tinycorn-studio/auto_video_generate/releases/download/v0.1.0/Wavely_0.1.0_aarch64.dmg).
 
-Bản đầu chưa ký số/notarize và cần cài FFmpeg riêng. Cần thử thao tác render thực tế sau khi cài.
+Bản v0.1.0 chưa ký số/notarize và cần cài FFmpeg riêng. Bản v0.2.0 có trình tải FFmpeg trong ứng dụng; cần hoàn tất build và smoke test trên Windows/macOS trước khi phát hành.

@@ -95,6 +95,19 @@
           </div>
 
           <div class="render-area">
+            <section class="engine-setup" id="engineSetup" aria-live="polite" hidden>
+              <strong>Thiếu engine xuất video</strong>
+              <p id="engineSetupText">Tải FFmpeg một lần vào thư mục riêng của Wavely. Sau đó có thể xuất video offline.</p>
+              <div class="engine-actions">
+                <button class="engine-install-button" id="installEngineButton" type="button">Tải engine FFmpeg</button>
+                <button class="engine-cancel-button" id="cancelEngineButton" type="button" hidden>Hủy tải</button>
+              </div>
+              <div class="engine-progress" id="engineProgress" hidden>
+                <div class="progress-top"><span id="engineProgressMessage">Đang chuẩn bị…</span><span id="engineProgressPercent">0%</span></div>
+                <div class="progress-track"><div class="progress-fill" id="engineProgressFill"></div></div>
+              </div>
+              <small>FFmpeg 9.0.2 · tải từ nguồn theo nền tảng · xác minh SHA-256 · chỉ giữ engine trên máy</small>
+            </section>
             <button id="renderButton" class="render-button" type="button" disabled>
               <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 4.8v10.4L15.5 10 7 4.8Z" fill="currentColor" /></svg>
               <span id="renderLabel">Tạo video</span>

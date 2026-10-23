@@ -4,6 +4,18 @@ Mọi thay đổi đáng chú ý của Wavely được ghi tại đây. Định 
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-23
+
+### Added
+
+- Cài engine FFmpeg một lần ngay trong Wavely theo nút bấm; tải đúng bản Windows/macOS, xác minh SHA-256, lưu tại app data và xóa archive tạm.
+- Hiển thị tiến độ tải/cài đặt, trạng thái engine và thao tác hủy; sau khi cài, xuất video chạy offline.
+
+### Changed
+
+- Không còn yêu cầu người dùng cuối tự cài FFmpeg bằng winget/Homebrew; vẫn nhận FFmpeg sẵn có trên máy.
+- Ghi rõ nhà build, phiên bản, hash, nguồn và license của từng FFmpeg runtime trong `THIRD_PARTY_NOTICES.md`.
+
 ## [0.1.0] - 2026-10-23
 
 ### Added
