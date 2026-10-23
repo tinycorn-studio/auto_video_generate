@@ -1,28 +1,29 @@
 # Kế hoạch AutoVideoGenerator
 
 **Cập nhật lần cuối:** 2026-10-23
-**Trạng thái hiện tại:** CI đã build installer v0.2.0 trên ba mục tiêu; Wavely đã cài và mở trên Windows; kiểm tra hoàn tất tải engine, render video và macOS còn chờ
-**Mục tiêu:** Tạo ứng dụng desktop chạy trên Windows và macOS, ghép một file ghi âm với một ảnh dọc thành video có sóng âm đồng bộ.
+**Trạng thái hiện tại:** source đã nâng lên v0.3.0; CI build installer và cài bản Windows mới đang chờ
+**Mục tiêu:** Tạo ứng dụng desktop chạy trên Windows và macOS, ghép một file ghi âm với một ảnh thành video có sóng âm đồng bộ.
 
 ## 1. Yêu cầu sản phẩm
 
 ### Đầu vào
 
 - Một file âm thanh do người dùng chọn.
-- Một ảnh dọc, ưu tiên ảnh Full HD 1080 × 1920.
+- Một ảnh; ứng dụng crop ảnh theo khổ video đã chọn mà không kéo méo.
 - Đọc thời lượng và thông tin file tự động; báo lỗi dễ hiểu khi file không đọc được.
 
 ### Đầu ra mặc định
 
-- MP4 dọc 1080 × 1920, 30 fps, H.264 và âm thanh AAC.
+- Mặc định MP4 dọc 1080 × 1920, 30 fps, H.264 và âm thanh AAC; có lựa chọn ngang 1920 × 1080.
+- Wave được căn giữa theo chiều ngang và có thể đặt phía trên, giữa hoặc phía dưới khung hình.
 - Độ dài video khớp với bản ghi âm.
 - Giữ nguyên nội dung âm thanh; không tự giảm tốc, thêm reverb, nhạc nền hoặc phụ đề.
-- Ảnh không méo. Nếu ảnh khác tỷ lệ 9:16, tự căn giữa và cắt vừa khung; không phóng đại hiệu ứng.
+- Ảnh không méo. Nếu ảnh khác tỷ lệ khung hình đã chọn, tự căn giữa và cắt vừa khung; không phóng đại hiệu ứng.
 - Tệp đầu ra tương thích với trình phát phổ biến và sẵn sàng đăng lên nền tảng video.
 
 ### Trải nghiệm sử dụng
 
-- Quy trình gọn: chọn ảnh, chọn âm thanh, chọn một preset, xem trước, xuất video.
+- Quy trình gọn: chọn ảnh, âm thanh, preset, khổ và vị trí wave; xem trước rồi xuất video.
 - Xử lý trên máy người dùng; v1 không gửi media lên dịch vụ bên ngoài.
 - Không cần API AI. Nhận diện thể loại tự động, tạo phụ đề và xử lý giọng nói nằm ngoài phạm vi v1.
 - Chỉ cung cấp một số preset chọn nhanh, không mở một bảng thông số kỹ thuật dài.
@@ -61,7 +62,7 @@ Tên preset là gợi ý giao diện, không phải nhận diện thể loại b
 - Mặc định tắt film grain, blur, shake và glow nặng. Các hiệu ứng này làm tăng chi phí render; chúng không cần thiết cho yêu cầu ảnh + audio + sóng âm.
 - Mặc định dùng 1080 × 1920, 30 fps, H.264, CRF khoảng 20–22 và preset mã hóa nhanh. Đo tốc độ/file size trước khi khóa chính xác thông số.
 - Nếu file âm thanh đầu vào đã tương thích với MP4, cân nhắc copy stream để tránh mã hóa lại; nếu không, chuyển sang AAC chất lượng cao.
-- Giữ phần sóng ở vùng nhỏ; phần tốn công chính vẫn là dựng và mã hóa khung hình 1080 × 1920.
+- Giữ phần sóng ở vùng nhỏ; phần tốn công chính vẫn là dựng và mã hóa khung Full HD 1080 × 1920 hoặc 1920 × 1080.
 - Tạo preview ngắn, độ phân giải thấp hơn trước khi xuất toàn bộ video để người dùng kiểm tra bố cục với thời gian chờ ngắn.
 - Đo thời gian render, kích thước file và mức dùng RAM trên máy tham chiếu. Mục tiêu ban đầu là đạt ít nhất tốc độ thời gian thực ở chế độ mặc định; ghi rõ cấu hình máy trong kết quả để so sánh công bằng.
 
@@ -110,6 +111,7 @@ Các mốc được cập nhật tại đây cùng với thay đổi mã nguồn
 | **M4 · Tối ưu và chất lượng** | Chưa bắt đầu | Đo thời gian/RAM/file size, kiểm tra đồng bộ âm thanh, màu sắc, crop và phát lại |
 | **M5 · Windows/macOS** | Đang triển khai · CI installer đạt trên ba mục tiêu; Windows đã cài/mở; kiểm tra engine và render còn chờ | Hoàn tất tải FFmpeg, xuất video mẫu trên Windows; smoke test macOS Intel/Apple Silicon |
 | **M6 · Bản dùng thử** | **Hoàn thành · v0.1.0 đã phát hành** | Installer và changelog đã đính kèm; ghi nhận phản hồi sau khi chạy thực tế |
+| **M7 · Khổ và bố cục xuất** | Đã triển khai trong source · CI build và render kiểm tra còn chờ | Chọn khổ dọc/ngang và vị trí wave; preview, crop và FFmpeg dùng chung lựa chọn |
 
 ## 5. Tiêu chí nghiệm thu
 
@@ -117,21 +119,22 @@ Các mốc được cập nhật tại đây cùng với thay đổi mã nguồn
 
 - Chọn được một ảnh và một file âm thanh; hiển thị tên, thời lượng và trạng thái đầu vào.
 - Xuất được MP4 theo preset đã chọn và mở được trong trình phát phổ biến.
+- Chọn được MP4 dọc 1080 × 1920 hoặc ngang 1920 × 1080; chọn được vị trí wave trên, giữa hoặc dưới.
 - Thời lượng khớp với âm thanh; không tăng/giảm tốc hoặc làm mất tiếng ở đầu/cuối.
 - Tiến độ cập nhật; có thể hủy mà không để lại file đầu ra hỏng như kết quả hoàn chỉnh.
 - Lỗi FFmpeg, file lỗi, thiếu dung lượng và đường dẫn có dấu/ký tự đặc biệt được xử lý rõ ràng.
 
 ### Chất lượng hình/tiếng
 
-- Kích thước mặc định đúng 1080 × 1920, tỷ lệ 9:16, 30 fps, H.264/AAC.
-- Ảnh không bị kéo méo; chữ và sóng không bị cắt khỏi vùng an toàn.
+- Kích thước mặc định đúng 1080 × 1920; lựa chọn ngang đúng 1920 × 1080; cả hai ở 30 fps, H.264/AAC.
+- Ảnh không bị kéo méo; wave ở đúng vị trí đã chọn và không bị cắt khỏi khung hình.
 - Sóng có nhịp phản ứng ổn định theo audio, không nhấp nháy bất thường.
 - Âm thanh đầu ra nghe được từ đầu đến cuối và giữ nguyên nội dung bản thu.
-- Preview và video xuất ra dùng cùng bố cục/preset.
+- Preview và video xuất ra dùng cùng khổ, vị trí wave và preset.
 
 ### Hiệu năng và hệ điều hành
 
-- Benchmark tối thiểu một clip 1 phút và một clip 5 phút ở 1080 × 1920/30 fps.
+- Benchmark tối thiểu một clip 1 phút và một clip 5 phút ở cả hai khổ Full HD/30 fps.
 - Ghi lại thời gian render, tỷ lệ thời gian render/thời lượng clip, kích thước video và mức RAM.
 - Chạy được trên Windows và macOS; xác nhận riêng bộ giải mã, WebView, đường dẫn file, tên file Unicode và codec đầu ra.
 - Không yêu cầu GPU rời; đường đi mặc định dựa trên CPU và FFmpeg.
@@ -223,6 +226,21 @@ Khi có thay đổi, cập nhật cả bảng mốc ở trên và nhật ký sau
 - Thêm `THIRD_PARTY_NOTICES.md` với nhà cung cấp, phiên bản, hash, nguồn và license/build source đã biết; cập nhật CHANGELOG/README/RELEASE.
 - Chưa biên dịch native source mới, chưa chạy luồng tải thực tế hoặc render trên Windows/macOS. Cần CI trên ba target, kiểm tra binary/checksum và review license/build provenance trước khi phát hành.
 - **Tiếp theo:** build CI cho source mới, chạy downloader và render mẫu trên Windows, macOS Intel và Apple Silicon; ghi kết quả/dung lượng engine và chốt release.
+
+#### 2026-10-23 · Khổ xuất và vị trí wave
+
+- Thêm lựa chọn khổ dọc 1080 × 1920 và ngang 1920 × 1080; preview đổi tỷ lệ, thông tin đầu ra và gợi ý crop ảnh đồng bộ.
+- Thêm ba vị trí wave trên/giữa/dưới; lựa chọn được truyền sang filtergraph FFmpeg. Wave giữ tỷ lệ với chiều cao khung, căn giữa ngang; vị trí dưới mặc định giữ gần bố cục hiện tại.
+- Cập nhật README và CHANGELOG; ghi thêm mốc M7 và tiêu chí nghiệm thu ở đây. Tính năng được đưa vào phiên bản 0.3.0.
+- Chưa chạy build, test hoặc render mẫu theo yêu cầu hiện tại; chưa xác nhận giao diện hay đầu ra trên Windows/macOS.
+- **Tiếp theo:** kiểm tra build và xuất mẫu ở cả hai tỷ lệ, ba vị trí và hai kiểu sóng trước khi phát hành bản mới.
+
+#### 2026-10-23 · Chuẩn bị installer Wavely v0.3.0
+
+- Đồng bộ `VERSION`, metadata npm, Cargo và Tauri lên `0.3.0` bằng `npm run version:set -- 0.3.0`.
+- Chuyển ghi chú khổ xuất và vị trí wave vào `CHANGELOG.md` dưới mục `0.3.0`; cập nhật README về trạng thái bản cài.
+- Chưa tạo tag/release công khai; installer được tạo từ CI để cài thử trước.
+- **Tiếp theo:** commit và push thay đổi, chờ CI ba nền tảng; tải installer Windows, cài bản mới và ghi kết quả.
 
 ## 8. Tài liệu tham khảo
 

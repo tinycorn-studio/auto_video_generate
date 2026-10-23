@@ -4,6 +4,13 @@ Mọi thay đổi đáng chú ý của Wavely được ghi tại đây. Định 
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-23
+
+### Added
+
+- Chọn khổ xuất video dọc 1080 × 1920 hoặc ngang 1920 × 1080; khung xem trước và vùng crop ảnh cập nhật theo lựa chọn.
+- Chọn vị trí wave trên, giữa hoặc dưới video; vị trí trong khung xem trước khớp với vị trí khi xuất.
+
 ## [0.2.0] - 2026-10-23
 
 ### Added
