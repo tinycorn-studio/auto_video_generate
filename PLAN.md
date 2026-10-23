@@ -1,7 +1,7 @@
 # Kế hoạch AutoVideoGenerator
 
 **Cập nhật lần cuối:** 2026-10-23
-**Trạng thái hiện tại:** Source v0.2.0 có luồng tải engine FFmpeg; CI đóng gói installer và smoke test cho bản mới đang chờ
+**Trạng thái hiện tại:** CI đã build installer v0.2.0 trên ba mục tiêu; Wavely đã cài và mở trên Windows; kiểm tra hoàn tất tải engine, render video và macOS còn chờ
 **Mục tiêu:** Tạo ứng dụng desktop chạy trên Windows và macOS, ghép một file ghi âm với một ảnh dọc thành video có sóng âm đồng bộ.
 
 ## 1. Yêu cầu sản phẩm
@@ -108,7 +108,7 @@ Các mốc được cập nhật tại đây cùng với thay đổi mã nguồn
 | **M2 · Prototype FFmpeg** | Đang triển khai · filtergraph đã có, chưa chạy | Ảnh + audio → MP4; đo line và Spectrum, giữ audio đúng thời lượng |
 | **M3 · Vỏ ứng dụng** | Đang triển khai · đã thêm nút tải/cài FFmpeg và tiến độ, Rust chưa compile | Màn hình chọn file, preview, cài engine, xuất, tiến độ và hủy tác vụ |
 | **M4 · Tối ưu và chất lượng** | Chưa bắt đầu | Đo thời gian/RAM/file size, kiểm tra đồng bộ âm thanh, màu sắc, crop và phát lại |
-| **M5 · Windows/macOS** | Đang triển khai · CI build installer v0.2.0 đang chờ | Cài và thử app trên Windows, macOS Intel/Apple Silicon; xác nhận tải FFmpeg và xuất video mẫu |
+| **M5 · Windows/macOS** | Đang triển khai · CI installer đạt trên ba mục tiêu; Windows đã cài/mở; kiểm tra engine và render còn chờ | Hoàn tất tải FFmpeg, xuất video mẫu trên Windows; smoke test macOS Intel/Apple Silicon |
 | **M6 · Bản dùng thử** | **Hoàn thành · v0.1.0 đã phát hành** | Installer và changelog đã đính kèm; ghi nhận phản hồi sau khi chạy thực tế |
 
 ## 5. Tiêu chí nghiệm thu
@@ -210,7 +210,10 @@ Khi có thay đổi, cập nhật cả bảng mốc ở trên và nhật ký sau
 - Chuyển mục FFmpeg cài trong ứng dụng từ `[Unreleased]` sang changelog `0.2.0`; đồng bộ version npm/Cargo/Tauri.
 - CI pull request chuyển từ compile-only sang đóng gói Windows `.exe`/`.msi` và macOS `.dmg`, tải làm artifacts để review và cài thử.
 - Máy Windows hiện không có MSVC Build Tools; dùng GitHub Actions để build native mà không thêm toolchain nhiều GB vào máy.
-- **Đang chờ:** CI build installer ba nền tảng; sau khi có artifact Windows sẽ thay v0.1.0 đang cài và mở app mới.
+- CI run [#4](https://github.com/tinycorn-studio/auto_video_generate/actions/runs/39895920429) thành công trên Windows x64, macOS Intel và Apple Silicon; cả ba installer artifacts đã được tạo.
+- Bản Windows tải từ artifact có SHA-256 khớp GitHub (`911a4c21afc20457ee1bef3d6ca2be836127e1f1f79c32d8a97b0059c793a08a`), cài đè bản cũ và mở thành công ở phiên bản `0.2.0`.
+- Khi chụp trạng thái giao diện, tải FFmpeg 9.0.2 đang ở khoảng 7–8%; chưa xác nhận tải xong hoặc xuất video mẫu. Chưa phát hành tag/release `v0.2.0`.
+- **Tiếp theo:** xác nhận engine cài hoàn tất, xuất video thử trên Windows, sau đó ghi nhận smoke test macOS và quyết định phát hành.
 
 #### 2026-10-23 · Cài engine FFmpeg trong ứng dụng
 
