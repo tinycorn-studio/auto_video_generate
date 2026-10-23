@@ -467,14 +467,40 @@ fn probe_duration(ffmpeg: &Path, audio: &Path) -> Result<f64, String> {
     Err(format!("Không đọc được thời lượng âm thanh. {detail}"))
 }
 
-fn output_args(style: &str, duration: f64, image: &Path, audio: &Path, temp: &Path) -> Result<Vec<std::ffi::OsString>, String> {
-    let wave_filter = match style {
-        "minimal" => "[1:a]aformat=channel_layouts=mono,showwaves=s=960x144:mode=line:rate=30:colors=0x75E8E1:scale=sqrt:draw=full,format=rgba,colorkey=0x000000:0.07:0.0[wave]",
-        "spectrum" => "[1:a]aformat=channel_layouts=stereo,showfreqs=s=960x176:mode=bar:ascale=log:fscale=log:win_size=2048:rate=30:colors=0xFF799A,format=rgba,colorkey=0x000000:0.07:0.0[wave]",
+fn output_args(
+    style: &str,
+    output_format: &str,
+    wave_position: &str,
+    duration: f64,
+    image: &Path,
+    audio: &Path,
+    temp: &Path,
+) -> Result<Vec<std::ffi::OsString>, String> {
+    let (width, height) = match output_format {
+        "portrait" => (1080_u32, 1920_u32),
+        "landscape" => (1920_u32, 1080_u32),
+        _ => return Err("Khổ video không hợp lệ.".to_string()),
+    };
+    let wave_width = width * 8 / 9;
+    let base_wave_height = match style {
+        "minimal" => 144_u32,
+        "spectrum" => 176_u32,
         _ => return Err("Kiểu sóng không hợp lệ.".to_string()),
     };
+    let wave_height = base_wave_height * height / 1920;
+    let wave_filter = match style {
+        "minimal" => format!("[1:a]aformat=channel_layouts=mono,showwaves=s={wave_width}x{wave_height}:mode=line:rate=30:colors=0x75E8E1:scale=sqrt:draw=full,format=rgba,colorkey=0x000000:0.07:0.0[wave]"),
+        "spectrum" => format!("[1:a]aformat=channel_layouts=stereo,showfreqs=s={wave_width}x{wave_height}:mode=bar:ascale=log:fscale=log:win_size=2048:rate=30:colors=0xFF799A,format=rgba,colorkey=0x000000:0.07:0.0[wave]"),
+        _ => unreachable!("Visualizer style was validated above"),
+    };
+    let overlay_y = match wave_position {
+        "top" => "H*0.25",
+        "center" => "(H-h)/2",
+        "bottom" => "H*0.62",
+        _ => return Err("Vị trí sóng âm không hợp lệ.".to_string()),
+    };
     let graph = format!(
-        "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1[bg];{wave_filter};[bg][wave]overlay=x=(W-w)/2:y=H*0.62:shortest=1:format=auto,format=yuv420p[v]"
+        "[0:v]scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},setsar=1[bg];{wave_filter};[bg][wave]overlay=x=(W-w)/2:y={overlay_y}:shortest=1:format=auto,format=yuv420p[v]"
     );
     let duration_text = format!("{duration:.3}");
     let mut args = vec![
@@ -523,6 +549,8 @@ fn start_render(
     audio_path: String,
     output_path: String,
     style: String,
+    output_format: String,
+    wave_position: String,
 ) -> Result<String, String> {
     {
         let jobs = state.0.lock().map_err(|_| "Không đọc được trạng thái tác vụ.".to_string())?;
@@ -555,7 +583,7 @@ fn start_render(
     let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
     let job_id = format!("{:x}", nanos);
     let temp = partial_path(&output, &job_id, "rendering");
-    let args = output_args(&style, duration, &image, &audio, &temp)?;
+    let args = output_args(&style, &output_format, &wave_position, duration, &image, &audio, &temp)?;
 
     let mut child = Command::new(&ffmpeg)
         .args(args)

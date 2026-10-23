@@ -4,6 +4,8 @@ import { open, save } from "@tauri-apps/plugin-dialog";
 import "./style.css";
 
 type VisualizerStyle = "minimal" | "spectrum";
+type OutputFormat = "portrait" | "landscape";
+type WavePosition = "top" | "center" | "bottom";
 type EngineStatus = { available: boolean; version: string | null; message: string };
 type EngineInstallEvent = { status: "downloading" | "extracting" | "ready" | "cancelled" | "error"; percent: number; message: string };
 type RenderEvent = {
@@ -38,7 +40,7 @@ const renderLabel = byId<HTMLSpanElement>("renderLabel");
 const previewPlaceholder = byId<HTMLDivElement>("previewPlaceholder");
 const previewEmptyLabel = byId<HTMLDivElement>("previewEmptyLabel");
 const videoFrame = byId<HTMLDivElement>("videoFrame");
-const state = { imagePath: "", audioPath: "", style: "minimal" as VisualizerStyle, engine: null as EngineStatus | null, jobId: "", busy: false, installing: false };
+const state = { imagePath: "", audioPath: "", style: "minimal" as VisualizerStyle, outputFormat: "portrait" as OutputFormat, wavePosition: "bottom" as WavePosition, engine: null as EngineStatus | null, jobId: "", busy: false, installing: false };
 
 function humanDuration(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return "—";
@@ -86,7 +88,7 @@ function updateRenderButton(): void {
   renderButton.disabled = state.busy || !state.imagePath || !state.audioPath || !state.engine?.available;
   imagePicker.disabled = state.busy;
   audioPicker.disabled = state.busy;
-  document.querySelectorAll<HTMLButtonElement>(".preset-card").forEach((button) => (button.disabled = state.busy));
+  document.querySelectorAll<HTMLButtonElement>(".preset-card, .choice-card").forEach((button) => (button.disabled = state.busy));
 }
 
 function showError(message: string): void {
@@ -244,6 +246,8 @@ async function startRender(): Promise<void> {
       audioPath: state.audioPath,
       outputPath,
       style: state.style,
+      outputFormat: state.outputFormat,
+      wavePosition: state.wavePosition,
     });
     resultMessage.textContent = "Đang xuất video. Bạn có thể hủy nếu cần.";
     resultMessage.className = "result-message";
@@ -278,6 +282,33 @@ function updatePreset(style: VisualizerStyle): void {
   byId("videoWave").querySelector("svg")!.toggleAttribute("hidden", spectrum);
   byId("videoWave").querySelector<HTMLElement>(".spectrum-bars")!.hidden = !spectrum;
   videoFrame.dataset.style = style;
+}
+
+function updateOutputFormat(format: OutputFormat): void {
+  state.outputFormat = format;
+  const landscape = format === "landscape";
+  const dimensions = landscape ? "1920 × 1080" : "1080 × 1920";
+  const aspect = landscape ? "16:9" : "9:16";
+  document.querySelectorAll<HTMLButtonElement>(".choice-card[data-format]").forEach((button) => {
+    const selected = button.dataset.format === format;
+    button.classList.toggle("is-selected", selected);
+    button.setAttribute("aria-checked", String(selected));
+  });
+  videoFrame.dataset.format = format;
+  byId("previewFormat").textContent = `${dimensions} · MP4`;
+  byId("outputDimensions").textContent = `MP4 · ${dimensions} · 30 fps · H.264`;
+  byId("outputAspect").textContent = aspect;
+  byId("imageAspectHint").textContent = `Ảnh sẽ cắt theo ${aspect}`;
+}
+
+function updateWavePosition(position: WavePosition): void {
+  state.wavePosition = position;
+  document.querySelectorAll<HTMLButtonElement>(".choice-card[data-position]").forEach((button) => {
+    const selected = button.dataset.position === position;
+    button.classList.toggle("is-selected", selected);
+    button.setAttribute("aria-checked", String(selected));
+  });
+  byId("videoWave").dataset.position = position;
 }
 
 function handleRenderEvent(event: RenderEvent): void {
@@ -315,6 +346,12 @@ async function init(): Promise<void> {
   cancelEngineButton.addEventListener("click", () => void cancelEngineInstall());
   document.querySelectorAll<HTMLButtonElement>(".preset-card").forEach((button) => {
     button.addEventListener("click", () => updatePreset(button.dataset.style as VisualizerStyle));
+  });
+  document.querySelectorAll<HTMLButtonElement>(".choice-card[data-format]").forEach((button) => {
+    button.addEventListener("click", () => updateOutputFormat(button.dataset.format as OutputFormat));
+  });
+  document.querySelectorAll<HTMLButtonElement>(".choice-card[data-position]").forEach((button) => {
+    button.addEventListener("click", () => updateWavePosition(button.dataset.position as WavePosition));
   });
   byId<HTMLButtonElement>("playAudio").addEventListener("click", () => {
     if (audioElement.paused) void audioElement.play();

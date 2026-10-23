@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f3f4f7" />
-    <meta name="description" content="Tạo video âm thanh dọc gọn nhẹ, xử lý hoàn toàn trên máy." />
+    <meta name="description" content="Tạo video âm thanh gọn nhẹ, xử lý hoàn toàn trên máy." />
     <title>Wavely · Tạo video âm thanh</title>
   </head>
   <body>
@@ -26,19 +26,19 @@
         <section class="editor-panel" aria-labelledby="pageTitle">
           <div class="eyebrow">TẠO VIDEO · 01</div>
           <h1 id="pageTitle">Một ảnh, một giai điệu</h1>
-          <p class="intro">Chọn ảnh nền và bản thu. Wavely sẽ ghép thành video dọc, đồng bộ sóng âm với nhạc.</p>
+          <p class="intro">Chọn ảnh nền và bản thu. Wavely sẽ ghép thành video, đồng bộ sóng âm với nhạc.</p>
 
           <div class="field-group">
             <div class="field-heading">
               <label for="imagePicker">Ảnh nền</label>
-              <span class="field-hint">Ưu tiên 9:16</span>
+              <span class="field-hint" id="imageAspectHint">Ảnh sẽ cắt theo 9:16</span>
             </div>
             <button class="file-card" id="imagePicker" type="button">
               <span class="file-icon image-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="3" width="17" height="18" rx="2.5" stroke="currentColor" stroke-width="1.7"/><circle cx="15.5" cy="8" r="1.6" fill="currentColor"/><path d="m5 17 4.7-4.7 3.1 3.1 2.3-2.3 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </span>
               <span class="file-copy">
-                <strong id="imageName">Chọn ảnh dọc</strong>
+                <strong id="imageName">Chọn ảnh nền</strong>
                 <span id="imageDetails">JPG, PNG hoặc WebP</span>
               </span>
               <span class="file-action" id="imageAction">Chọn ảnh</span>
@@ -68,6 +68,25 @@
             <audio id="audioElement" preload="metadata"></audio>
           </div>
 
+          <div class="field-group option-group">
+            <div class="field-heading">
+              <label>Khổ video</label>
+              <span class="field-hint">Full HD · 30 fps</span>
+            </div>
+            <div class="option-list option-list--two" role="radiogroup" aria-label="Khổ video xuất">
+              <button class="choice-card is-selected" type="button" role="radio" aria-checked="true" data-format="portrait">
+                <span class="orientation-icon orientation-icon--portrait" aria-hidden="true"></span>
+                <span class="choice-copy"><strong>Dọc</strong><small>1080 × 1920</small></span>
+                <span class="radio-indicator" aria-hidden="true"></span>
+              </button>
+              <button class="choice-card" type="button" role="radio" aria-checked="false" data-format="landscape">
+                <span class="orientation-icon orientation-icon--landscape" aria-hidden="true"></span>
+                <span class="choice-copy"><strong>Ngang</strong><small>1920 × 1080</small></span>
+                <span class="radio-indicator" aria-hidden="true"></span>
+              </button>
+            </div>
+          </div>
+
           <div class="field-group preset-group">
             <div class="field-heading">
               <label>Kiểu sóng âm</label>
@@ -88,10 +107,34 @@
             <p class="preset-note" id="presetNote">Sóng gọn, nhẹ và dễ nhìn trên nền ảnh.</p>
           </div>
 
+          <div class="field-group option-group position-group">
+            <div class="field-heading">
+              <label>Vị trí sóng âm</label>
+              <span class="field-hint">Căn giữa theo chiều ngang</span>
+            </div>
+            <div class="option-list option-list--three" role="radiogroup" aria-label="Vị trí sóng âm">
+              <button class="choice-card position-card" type="button" role="radio" aria-checked="false" data-position="top">
+                <span class="position-icon position-icon--top" aria-hidden="true"><i></i></span>
+                <span class="choice-copy"><strong>Trên</strong></span>
+                <span class="radio-indicator" aria-hidden="true"></span>
+              </button>
+              <button class="choice-card position-card" type="button" role="radio" aria-checked="false" data-position="center">
+                <span class="position-icon position-icon--center" aria-hidden="true"><i></i></span>
+                <span class="choice-copy"><strong>Giữa</strong></span>
+                <span class="radio-indicator" aria-hidden="true"></span>
+              </button>
+              <button class="choice-card position-card is-selected" type="button" role="radio" aria-checked="true" data-position="bottom">
+                <span class="position-icon position-icon--bottom" aria-hidden="true"><i></i></span>
+                <span class="choice-copy"><strong>Dưới</strong></span>
+                <span class="radio-indicator" aria-hidden="true"></span>
+              </button>
+            </div>
+          </div>
+
           <div class="output-summary">
             <span class="output-icon" aria-hidden="true">↗</span>
-            <span><strong>Đầu ra mặc định</strong><small>MP4 · 1080 × 1920 · 30 fps · H.264</small></span>
-            <span class="quality-badge">1080p</span>
+            <span><strong>Cấu hình xuất</strong><small id="outputDimensions">MP4 · 1080 × 1920 · 30 fps · H.264</small></span>
+            <span class="quality-badge" id="outputAspect">9:16</span>
           </div>
 
           <div class="render-area">
@@ -122,8 +165,8 @@
         </section>
 
         <aside class="preview-panel" aria-label="Xem trước video">
-          <div class="preview-heading"><span>XEM TRƯỚC VIDEO</span><span>1080 × 1920 · MP4</span></div>
-          <div class="video-frame" id="videoFrame">
+          <div class="preview-heading"><span>XEM TRƯỚC VIDEO</span><span id="previewFormat">1080 × 1920 · MP4</span></div>
+          <div class="video-frame" id="videoFrame" data-format="portrait">
             <div class="preview-placeholder" id="previewPlaceholder" aria-hidden="true">
               <div class="placeholder-orb"></div>
               <div class="placeholder-horizon"></div>
@@ -131,7 +174,7 @@
             </div>
             <img class="selected-image" id="selectedImage" alt="Ảnh nền xem trước" hidden />
             <div class="video-shade"></div>
-            <div class="video-wave" id="videoWave" aria-hidden="true">
+            <div class="video-wave" id="videoWave" data-position="bottom" aria-hidden="true">
               <svg viewBox="0 0 320 72" preserveAspectRatio="none"><path d="M2 36 C14 36 14 29 23 29 S34 47 44 47 55 21 66 21 77 39 87 39 97 33 106 33 116 52 127 52 139 26 149 26 158 42 170 42 180 28 190 28 201 47 211 47 222 33 231 33 243 38 252 38 264 22 274 22 285 44 294 44 305 35 318 35" /></svg>
               <span class="spectrum-bars" hidden><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
             </div>
