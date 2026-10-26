@@ -1,6 +1,7 @@
 # Frontend build output
 node_modules/
 dist/
+/previews/
 .vite/
 *.tsbuildinfo
 
