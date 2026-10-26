@@ -4,6 +4,18 @@ Mọi thay đổi đáng chú ý của Wavely được ghi tại đây. Định 
 
 ## [Unreleased]
 
+### Added
+
+- Tạo tiêu đề, mô tả, hashtag và từ khóa bằng Gemini 3.8 Flash qua XPiki sau khi xuất video; mặc định English, hỗ trợ tiếng Việt và YouTube/TikTok/Facebook/Instagram.
+- Lưu API key XPiki bằng Keychain/Credential Manager, kiểm tra quyền truy cập model trước khi lưu, thay/xóa key mà không lưu vào localStorage hay file cấu hình.
+- Tab xem nội dung theo nền tảng, sao chép từng phần/tất cả và mở file/thư mục đầu ra.
+- Xuất file `-noi-dung.txt` cạnh MP4; tránh ghi đè file cũ bằng hậu tố số. Lỗi Gemini không làm mất video; có thể thử lại nội dung mà không render lại.
+
+### Changed
+
+- Bố cục hai tab xem trước, preset gọn và phần chỉnh vị trí/kích thước sóng có thể thu gọn theo demo đã duyệt.
+- Chỉ gửi transcript/tóm tắt do người dùng nhập tới XPiki khi bật Gemini; không gửi âm thanh/video, không lưu lịch sử bài đăng và không kiểm tra trùng lặp.
+
 ## [0.4.0] - 2026-10-23
 
 ### Added

@@ -1,6 +1,8 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open, save } from "@tauri-apps/plugin-dialog";
+import { capturePublishingRequest, generatePublishing, initPublishing, publishingEnabled, resetPublishingResult, setPublishingBusy } from "./publishing";
+import type { PublishingRequest } from "./publishing";
 import "./style.css";
 
 type VisualizerStyle = "minimal" | "balanced" | "spectrum";
@@ -41,6 +43,9 @@ const previewPlaceholder = byId<HTMLDivElement>("previewPlaceholder");
 const previewEmptyLabel = byId<HTMLDivElement>("previewEmptyLabel");
 const videoFrame = byId<HTMLDivElement>("videoFrame");
 const state = { imagePath: "", audioPath: "", style: "minimal" as VisualizerStyle, outputFormat: "portrait" as OutputFormat, wavePosition: "bottom-center" as WavePosition, waveScale: 100, engine: null as EngineStatus | null, jobId: "", busy: false, installing: false };
+let pendingPublishing: PublishingRequest | null = null;
+let startingRender = false;
+let earlyRenderEvent: RenderEvent | null = null;
 
 function humanDuration(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return "—";
@@ -71,7 +76,7 @@ function setEngine(status: EngineStatus): void {
   engineStatus.title = status.message;
   if (!status.available) {
     engineSetupText.textContent = status.message.includes("Chưa tìm thấy")
-      ? "Tải FFmpeg một lần vào thư mục riêng của Wavely. Sau đó có thể xuất video offline; file ảnh và âm thanh không được tải lên."
+      ? "Tải FFmpeg một lần vào thư mục riêng của Wavely. Video được xử lý trên máy; Gemini là tùy chọn và cần Internet."
       : `${status.message} Bạn có thể cài engine tương thích ngay trong Wavely.`;
     engineSetup.hidden = false;
     if (!state.installing && !resultMessage.classList.contains("is-error")) resultMessage.textContent = "";
@@ -90,10 +95,11 @@ function updateRenderButton(): void {
   audioPicker.disabled = state.busy;
   document.querySelectorAll<HTMLButtonElement>(".preset-card, .choice-card, .position-card").forEach((button) => (button.disabled = state.busy));
   byId<HTMLInputElement>("waveScale").disabled = state.busy;
+  if (!state.busy) renderLabel.textContent = publishingEnabled() ? "Tạo video & nội dung đăng bài" : "Tạo video";
 }
 
 function showError(message: string): void {
-  resultMessage.textContent = message;
+  resultMessage.textContent = message.replace(/^Error: /, "");
   resultMessage.className = "result-message is-error";
 }
 
@@ -165,6 +171,8 @@ function setBusy(busy: boolean): void {
   cancelButton.hidden = !busy;
   renderProgress.hidden = !busy;
   renderLabel.textContent = busy ? "Đang xuất video…" : "Tạo video";
+  cancelButton.disabled = false;
+  setPublishingBusy(busy);
   updateRenderButton();
 }
 
@@ -189,6 +197,7 @@ async function pickImage(): Promise<void> {
   selectedImage.hidden = false;
   previewPlaceholder.hidden = true;
   previewEmptyLabel.hidden = true;
+  byId("videoCaption").hidden = true;
   if (state.engine?.available) resultMessage.textContent = "";
   updateRenderButton();
 }
@@ -236,12 +245,17 @@ async function startRender(): Promise<void> {
   if (renderButton.disabled || state.busy) return;
   resultMessage.textContent = "";
   try {
+    capturePublishingRequest(); // Validate before opening the output picker or starting a render.
     const outputPath = await chooseOutput();
     if (!outputPath) return;
+    const publishing = capturePublishingRequest(); // Respect changes made while the native picker was open.
+    pendingPublishing = publishing;
+    resetPublishingResult();
     setBusy(true);
     byId("progressMessage").textContent = "Đang chuẩn bị video…";
     byId("progressPercent").textContent = "0%";
     byId("progressFill").style.width = "0%";
+    startingRender = true;
     state.jobId = await invoke<string>("start_render", {
       imagePath: state.imagePath,
       audioPath: state.audioPath,
@@ -253,7 +267,12 @@ async function startRender(): Promise<void> {
     });
     resultMessage.textContent = "Đang xuất video. Bạn có thể hủy nếu cần.";
     resultMessage.className = "result-message";
+    startingRender = false;
+    if (earlyRenderEvent) { const event = earlyRenderEvent; earlyRenderEvent = null; handleRenderEvent(event); }
   } catch (error) {
+    startingRender = false;
+    earlyRenderEvent = null;
+    pendingPublishing = null;
     setBusy(false);
     showError(String(error));
   }
@@ -328,6 +347,7 @@ function updateWavePosition(position: WavePosition): void {
   wave.style.top = vertical === "top" ? "5%" : vertical === "center" ? "50%" : "auto";
   wave.style.bottom = vertical === "bottom" ? "5%" : "auto";
   wave.style.transform = `translate(${horizontal === "center" ? "-50%" : "0"}, ${vertical === "center" ? "-50%" : "0"})`;
+  updateWaveLayoutSummary();
 }
 
 function updateWaveScale(scale: number): void {
@@ -337,9 +357,40 @@ function updateWaveScale(scale: number): void {
   const wave = byId("videoWave");
   wave.style.width = `${(8 / 9) * state.waveScale}%`;
   wave.style.height = `${(state.style === "spectrum" ? 9.2 : 7.5) * state.waveScale / 100}%`;
+  updateWaveLayoutSummary();
+}
+
+function updateWaveLayoutSummary(): void {
+  const selected = document.querySelector<HTMLButtonElement>(`.position-card[data-position="${state.wavePosition}"]`);
+  byId("waveLayoutSummary").textContent = `Vị trí: ${selected?.getAttribute("aria-label") ?? "Dưới giữa"} · Kích thước: ${state.waveScale}%`;
+}
+
+async function createPublishingContent(request: PublishingRequest): Promise<void> {
+  setBusy(true);
+  cancelButton.hidden = true;
+  renderProgress.hidden = true;
+  renderLabel.textContent = "Đang tạo nội dung đăng bài…";
+  try {
+    await generatePublishing(request);
+    resultMessage.textContent = "Đã lưu video và file nội dung .txt cùng thư mục.";
+    resultMessage.className = "result-message is-success";
+  } catch {
+    resultMessage.textContent = "Video đã được lưu. XPiki chưa tạo được nội dung; xem chi tiết và thử lại trong tab Nội dung đăng bài.";
+    resultMessage.className = "result-message";
+  } finally { setBusy(false); }
+}
+
+async function retryPublishing(): Promise<void> {
+  if (state.busy) return;
+  try {
+    const request = capturePublishingRequest();
+    if (!request) throw new Error("Bật tạo nội dung đăng bài để thử lại.");
+    await createPublishingContent(request);
+  } catch (error) { showError(String(error)); }
 }
 
 function handleRenderEvent(event: RenderEvent): void {
+  if (startingRender && !state.jobId) { earlyRenderEvent = event; return; }
   if (event.jobId !== state.jobId) return;
   const percent = Math.max(0, Math.min(100, Math.round(event.percent)));
   byId("progressPercent").textContent = `${percent}%`;
@@ -347,18 +398,24 @@ function handleRenderEvent(event: RenderEvent): void {
   byId("progressMessage").textContent = event.message;
 
   if (event.status === "completed") {
-    setBusy(false);
     state.jobId = "";
     resultMessage.textContent = `Đã tạo video: ${event.outputPath ?? ""}`;
     resultMessage.className = "result-message is-success";
     byId("progressPercent").textContent = "100%";
     byId("progressFill").style.width = "100%";
+    if (pendingPublishing) {
+      const request = pendingPublishing;
+      pendingPublishing = null;
+      void createPublishingContent(request);
+    } else { setBusy(false); }
   } else if (event.status === "cancelled") {
+    pendingPublishing = null;
     setBusy(false);
     state.jobId = "";
     resultMessage.textContent = "Đã hủy xuất video. File tạm đã được dọn.";
     resultMessage.className = "result-message";
   } else if (event.status === "error") {
+    pendingPublishing = null;
     setBusy(false);
     state.jobId = "";
     showError(event.message);
@@ -396,6 +453,13 @@ async function init(): Promise<void> {
   const version = await invoke<string>("app_version").catch(() => "0.3.0");
   byId("appVersion").textContent = version;
   await refreshEngineStatus();
+  await initPublishing((keySaved) => {
+    updateRenderButton();
+    if (keySaved && resultMessage.classList.contains("is-error") && resultMessage.textContent?.includes("API key")) {
+      resultMessage.textContent = "";
+      resultMessage.className = "result-message";
+    }
+  }, () => void retryPublishing());
 }
 
 void init().catch((error) => {

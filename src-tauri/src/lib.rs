@@ -12,6 +12,8 @@ use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Manager, State};
 
+mod publishing;
+
 type JobMap = HashMap<String, Arc<Mutex<ManagedProcess>>>;
 
 #[derive(Default)]
@@ -676,6 +678,13 @@ fn start_render(
             }
         };
 
+        if matches!(&result, Ok(("completed", _, _))) {
+            publishing::register_export(&app_handle, &output);
+        }
+        // Release the job before notifying the UI so an immediate next render can start.
+        if let Ok(mut active) = jobs.lock() {
+            active.remove(&job_key);
+        }
         match result {
             Ok((status, percent, message)) => emit(&app_handle, RenderEvent {
                 job_id: job_key.clone(), status: status.to_string(), percent, message,
@@ -684,9 +693,6 @@ fn start_render(
             Err(message) => emit(&app_handle, RenderEvent {
                 job_id: job_key.clone(), status: "error".to_string(), percent: 0.0, message, output_path: None,
             }),
-        }
-        if let Ok(mut active) = jobs.lock() {
-            active.remove(&job_key);
         }
     });
 
@@ -710,9 +716,13 @@ fn cancel_render(state: State<'_, ActiveJobs>, job_id: String) -> Result<(), Str
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .manage(ActiveJobs::default())
         .manage(EngineInstallState::default())
-        .invoke_handler(tauri::generate_handler![app_version, ffmpeg_status, install_ffmpeg, cancel_ffmpeg_install, start_render, cancel_render])
+        .manage(publishing::PublishingState::default())
+        .invoke_handler(tauri::generate_handler![app_version, ffmpeg_status, install_ffmpeg, cancel_ffmpeg_install, start_render, cancel_render,
+            publishing::xpiki_key_status, publishing::save_xpiki_key, publishing::delete_xpiki_key,
+            publishing::generate_publishing_content, publishing::open_publishing_output])
         .run(tauri::generate_context!())
         .expect("Wavely could not start");
 }
