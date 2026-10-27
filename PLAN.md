@@ -304,7 +304,9 @@ Khi có thay đổi, cập nhật cả bảng mốc ở trên và nhật ký sau
 - Lưu loại dịch vụ cùng key trong một credential bảo mật; đọc tương thích key XPiki cũ, chỉ thay bản ghi sau khi kiểm tra model thành công. Frontend chỉ nhận trạng thái và loại dịch vụ.
 - Thêm request/response Google Generate Content, chuẩn hóa đầu ra về bộ kiểm tra bài đăng hiện tại. Giữ nguyên form văn bản, prompt và đầu ra `.txt`.
 - Đổi nhãn chính sang Gemini API key, không thêm lựa chọn dịch vụ; chú thích văn bản hiển thị đúng nơi nhận dữ liệu.
-- Bổ sung test nhận diện, tương thích credential cũ, ràng buộc host/header, metadata model, phản hồi Google và bảo vệ key trong trạng thái frontend. `npm run build`, định dạng Rust và `git diff --check` đạt; tiếp tục build/test native qua CI do máy local thiếu C++ Build Tools.
+- Bổ sung test nhận diện, tương thích credential cũ, ràng buộc host/header, metadata model, phản hồi Google và bảo vệ key trong trạng thái frontend. `npm run build`, định dạng Rust và `git diff --check` đạt.
+- CI [run 40446321928](https://github.com/tinycorn-studio/auto_video_generate/actions/runs/40446321928) tại commit `d6bcc65` build thành công và đạt 14 kiểm tra publishing trên Windows/macOS Intel/Apple Silicon. Artifact Windows được xác minh SHA-256, giải nén và mở tại `previews/windows-d6bcc65/app/PFiles/Wavely/wavely.exe`.
+- Smoke test Windows xác nhận nhãn Gemini API key hiển thị, nhận được key XPiki đã lưu và không có lỗi khởi tạo. Chưa gọi Google bằng key thật; người dùng có thể nhập key trực tiếp trong app để thử dịch vụ/quota tài khoản của mình. Chưa smoke test trực tiếp app trên macOS.
 
 ## 8. Tài liệu tham khảo
 
