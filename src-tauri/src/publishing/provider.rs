@@ -516,7 +516,7 @@ mod tests {
             validate_model(Provider::Google, &json!({"name":format!("models/{MODEL}")})).is_err()
         );
         let chat = json!({"messages":[{"content":"system fixture"},{"content":"source fixture"}],"max_tokens":8192});
-        let native = google_body(&chat);
+        let native = google_body(&chat, None);
         assert_eq!(
             native["systemInstruction"]["parts"][0]["text"],
             "system fixture"
