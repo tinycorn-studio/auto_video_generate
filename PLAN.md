@@ -1,7 +1,7 @@
 # Kế hoạch AutoVideoGenerator
 
-**Cập nhật lần cuối:** 2026-10-23
-**Trạng thái hiện tại:** Wavely v0.4.0 đã được merge vào `main`; người dùng xác nhận đã cài và xuất video thành công trên Windows; release công khai mới nhất vẫn là v0.3.0, chưa tạo tag/release v0.4.0
+**Cập nhật lần cuối:** 2026-10-27
+**Trạng thái hiện tại:** Wavely v0.5.0 đang chờ merge PR #3; CI build và publishing tests đã qua trên ba mục tiêu, người dùng đã chạy thử app trên macOS; release công khai gần nhất vẫn là v0.3.0 cho đến khi publish tag v0.5.0
 **Mục tiêu:** Tạo ứng dụng desktop chạy trên Windows và macOS, ghép một file ghi âm với một ảnh thành video có sóng âm đồng bộ.
 
 ## 1. Yêu cầu sản phẩm
@@ -115,6 +115,7 @@ Các mốc được cập nhật tại đây cùng với thay đổi mã nguồn
 | **M6 · Bản dùng thử** | **Hoàn thành · v0.1.0 và v0.3.0 đã phát hành** | Installer và changelog đã đính kèm; ghi nhận phản hồi sau khi chạy thực tế |
 | **M7 · Khổ và bố cục xuất** | Đã phát hành trong v0.3.0; người dùng xác nhận render thành công; chưa kiểm tra toàn bộ tổ hợp khổ/vị trí/preset | Chọn khổ dọc/ngang; preview và FFmpeg đồng bộ bố cục |
 | **M8 · Sóng cân xứng và điều chỉnh bố cục** | **Hoàn thành · v0.4.0 đã merge; người dùng xác nhận xuất video thành công trên Windows; CI xanh cả ba mục tiêu** | Kiểu sóng cân xứng `cline`, lưới 3 × 3 vị trí và scale 25–100% |
+| **M9 · Nội dung đăng bài từ audio** | **Hoàn thành về tính năng · PR #3 chờ merge; CI xanh trên ba mục tiêu, app đã được người dùng chạy thử trên macOS** | Google Gemini/XPiki, chế độ Audio mặc định hoặc Transcript, nội dung tiếng Anh mặc định và file `.txt` |
 
 ## 5. Tiêu chí nghiệm thu
 
@@ -307,6 +308,14 @@ Khi có thay đổi, cập nhật cả bảng mốc ở trên và nhật ký sau
 - Bổ sung test nhận diện, tương thích credential cũ, ràng buộc host/header, metadata model, phản hồi Google và bảo vệ key trong trạng thái frontend. `npm run build`, định dạng Rust và `git diff --check` đạt.
 - CI [run 40446321928](https://github.com/tinycorn-studio/auto_video_generate/actions/runs/40446321928) tại commit `d6bcc65` build thành công và đạt 14 kiểm tra publishing trên Windows/macOS Intel/Apple Silicon. Artifact Windows được xác minh SHA-256, giải nén và mở tại `previews/windows-d6bcc65/app/PFiles/Wavely/wavely.exe`.
 - Smoke test Windows xác nhận nhãn Gemini API key hiển thị, nhận được key XPiki đã lưu và không có lỗi khởi tạo. Chưa gọi Google bằng key thật; người dùng có thể nhập key trực tiếp trong app để thử dịch vụ/quota tài khoản của mình. Chưa smoke test trực tiếp app trên macOS.
+
+#### 2026-10-27 · Nguồn audio cho nội dung đăng bài (v0.5.0)
+
+- Thêm chế độ gửi audio đã chọn (mặc định) hoặc nhập transcript; lưu lựa chọn nguồn cùng ngôn ngữ, nền tảng và trạng thái tạo nội dung.
+- Google Gemini nhận các định dạng audio của ứng dụng; dùng Files API cho file trên 14 MiB và yêu cầu xóa upload sau khi sinh. Với XPiki, chỉ gửi khi model công bố hỗ trợ audio và giới hạn WAV/MP3 tối đa 14 MiB; model hiện chỉ hỗ trợ văn bản vẫn dùng được ở chế độ transcript.
+- Cập nhật prompt, thông báo dữ liệu được gửi, UI xem trước, README và CHANGELOG v0.5.0; không lưu lịch sử bài đăng và không kiểm tra trùng lặp.
+- Người dùng xác nhận đã chạy thử app local trên macOS. `cargo test --manifest-path src-tauri/Cargo.toml --lib publishing::` thành công với 14/14 test; CI run [#40540574258](https://github.com/tinycorn-studio/auto_video_generate/actions/runs/40540574258) build installer, chạy publishing regressions và upload artifacts thành công trên Windows x64, macOS Intel và Apple Silicon.
+- PR [#3](https://github.com/tinycorn-studio/auto_video_generate/pull/3) chờ merge và phát hành; chưa gắn tag hoặc publish v0.5.0.
 
 ## 8. Tài liệu tham khảo
 
