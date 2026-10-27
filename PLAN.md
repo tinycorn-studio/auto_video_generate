@@ -295,7 +295,8 @@ Khi có thay đổi, cập nhật cả bảng mốc ở trên và nhật ký sau
 - Bổ sung hướng viết riêng cho YouTube/TikTok/Facebook/Instagram; tách nguồn người dùng thành JSON và giữ quy tắc chỉ viết thông tin có trong transcript/tóm tắt.
 - Đặt độ dài gợi ý theo nền tảng, tránh clickbait, hashtag xu hướng không có căn cứ và lời kêu gọi tương tác máy móc; vẫn dùng một yêu cầu XPiki cho các nền tảng đã chọn.
 - Cho phép 0–5 hashtag và 0–10 từ khóa, chuẩn hóa/loại trùng và kiểm tra độ dài caption gồm hashtag. Giao diện thể hiện rõ kết quả không có đề xuất.
-- Bổ sung kiểm tra hồi quy cho metadata tùy chọn, loại trùng và giới hạn caption Unicode. `npm run build`, định dạng Rust và `git diff --check` đạt; test Rust local bị chặn vì chưa cache `keyring`/thiếu C++ Build Tools, tiếp tục kiểm tra qua CI trước khi mở bản thử.
+- Bổ sung kiểm tra hồi quy cho metadata tùy chọn, loại trùng và giới hạn caption Unicode. `npm run build`, định dạng Rust và `git diff --check` đạt; test Rust local bị chặn vì chưa cache `keyring`/thiếu C++ Build Tools.
+- CI [run 40442693218](https://github.com/tinycorn-studio/auto_video_generate/actions/runs/40442693218) của commit `115f9c2` build thành công và đạt cả 7 kiểm tra publishing trên Windows/macOS Intel/Apple Silicon. Artifact Windows được xác minh SHA-256 rồi giải nén và mở tại `previews/windows-115f9c2/app/PFiles/Wavely/wavely.exe` để thử prompt mới; chưa gọi API thật để đánh giá chất lượng bài sinh.
 
 ## 8. Tài liệu tham khảo
 
