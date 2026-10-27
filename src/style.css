@@ -274,6 +274,22 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus
 .platform-options input:checked + span { color: var(--accent); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
 .platform-options input:checked + span::before { content: "✓ "; }
 .platform-options input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.source-mode-options { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin: 8px 0 10px; padding: 4px; background: var(--soft); border-radius: 9px; }
+.source-mode-options label { position: relative; min-width: 0; cursor: pointer; }
+.source-mode-options input { position: absolute; opacity: 0; inset: 0; margin: 0; }
+.source-mode-options span { display: block; padding: 8px 10px; border: 1px solid transparent; border-radius: 6px; color: var(--muted); text-align: center; font-size: 10px; font-weight: 600; }
+.source-mode-options input:checked + span { color: var(--accent); background: var(--panel); border-color: var(--border); box-shadow: 0 1px 3px #00000008; }
+.source-mode-options input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.publishing-audio-source { display: flex; align-items: center; gap: 9px; min-height: 48px; padding: 7px 10px; border: 1px solid #f0e2bf; border-radius: 8px; background: #fffdf7; }
+.audio-source-icon { display: grid; place-items: center; width: 32px; height: 32px; flex: 0 0 32px; border-radius: 8px; background: #fff3df; color: var(--accent); font-size: 17px; }
+.publishing-audio-source > span:last-child { min-width: 0; }
+.publishing-audio-source strong, .publishing-audio-source small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.publishing-audio-source strong { font-size: 10px; font-weight: 600; }
+.publishing-audio-source small { margin-top: 3px; color: var(--muted); font-size: 9px; }
+.audio-support-note { margin: 7px 0 0; color: var(--muted); font-size: 9px; line-height: 1.5; }
+.audio-support-note.is-error { color: #ae7440; }
+.audio-support-note.is-success { color: var(--green); }
+.publishing-card #publishingTranscriptField label { display: block; font-size: 11px; font-weight: 600; }
 .publishing-card textarea { display: block; width: 100%; margin-top: 8px; padding: 10px; resize: vertical; min-height: 55px; max-height: 160px; border: 1px solid var(--border); border-radius: 8px; background: var(--soft); font-size: 11px; line-height: 1.5; }
 .ai-disclosure { margin: 11px 0 0; color: var(--muted); font-size: 10px; line-height: 1.6; }
 .preview-panel { position: sticky; top: 20px; padding-top: 0; }

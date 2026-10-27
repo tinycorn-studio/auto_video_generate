@@ -679,7 +679,7 @@ fn start_render(
         };
 
         if matches!(&result, Ok(("completed", _, _))) {
-            publishing::register_export(&app_handle, &output);
+            publishing::register_export(&app_handle, &output, &audio);
         }
         // Release the job before notifying the UI so an immediate next render can start.
         if let Ok(mut active) = jobs.lock() {
@@ -721,7 +721,7 @@ pub fn run() {
         .manage(EngineInstallState::default())
         .manage(publishing::PublishingState::default())
         .invoke_handler(tauri::generate_handler![app_version, ffmpeg_status, install_ffmpeg, cancel_ffmpeg_install, start_render, cancel_render,
-            publishing::publishing_key_status, publishing::save_publishing_key, publishing::delete_publishing_key,
+            publishing::publishing_key_status, publishing::publishing_audio_support, publishing::save_publishing_key, publishing::delete_publishing_key,
             publishing::generate_publishing_content, publishing::open_publishing_output])
         .run(tauri::generate_context!())
         .expect("Wavely could not start");

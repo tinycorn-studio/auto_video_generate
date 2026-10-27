@@ -68,13 +68,13 @@ func video() {
     txt("00:00 / 08:24",x+35,y+h+17,11,muted,.regular,150,22)
     txt("9:16 · Full HD",x+174,y+h+17,10,muted,.regular,120,22)
 }
-func screen(_ result: Bool) {
+func screen(_ result: Bool, _ manualInput: Bool = false) {
     box(0,0,canvasWidth,canvasHeight,page,0)
     box(0,0,canvasWidth,68,white,0)
     box(44,18,32,32,lavender,10); wave(51,34,18,15,purple)
     txt("Wavely",86,23,20,ink,.bold)
     txt("●",911,27,10,green); txt("Engine sẵn sàng",928,25,12,muted)
-    pill("✦  Gemini · Xpiki",1053,20,145)
+    pill("✦  Google Gemini · XPiki",1033,20,165)
     txt("TẠO VIDEO · 01",54,95,11,purple,.bold)
     txt("Một ảnh, một giai điệu",54,119,29,ink,.bold)
     txt("Ghép bản thu thành video, chuẩn bị nội dung để chia sẻ.",54,161,13,muted)
@@ -101,8 +101,8 @@ func screen(_ result: Bool) {
     txt("Tạo nội dung đăng bài",112,652,15,ink,.semibold)
     txt("Kèm tiêu đề, mô tả và hashtag",112,677,11,muted)
     box(505,656,45,25,purple,13); box(528,659,19,19,white,10)
-    txt("Xpiki API key",72,710,11,ink,.semibold)
-    txt("Gemini 3.8 Flash · Xpiki",390,710,10,muted)
+    txt("Google Gemini / XPiki API key",72,710,11,ink,.semibold)
+    txt("gemini-3.8-flash",427,710,9,muted)
     box(72,733,392,35,col("F8F9FB"),8,stroke:line)
     txt("••••••••••••••••••••••••",84,744,12,muted,.regular,290,20)
     txt("◉",435,741,13,muted,.regular,20,22)
@@ -114,11 +114,23 @@ func screen(_ result: Bool) {
     pill("✓ YouTube",267,826,105)
     pill("✓ TikTok",380,826,85)
     pill("+ Khác",473,826,77,selected:false)
-    txt("Bản chép lời / tóm tắt nội dung",72,874,11,ink,.semibold)
-    txt("(bắt buộc)",382,874,10,muted)
-    box(72,896,478,52,col("F8F9FB"),7,stroke:line)
-    txt("Dán transcript hoặc tóm tắt chính xác nội dung âm thanh…",83,907,11,muted,.regular,450,36)
-    txt("Xpiki Gemini chỉ nhận văn bản. Wavely không gửi âm thanh hoặc video.",72,962,9,muted,.regular,480,36)
+    txt("Nguồn nội dung",72,874,11,ink,.semibold)
+    box(72,894,478,32,col("F0F1F6"),8)
+    box(manualInput ? 311 : 75,897,236,26,white,6,stroke:line)
+    txt("♪  Dùng audio",91,903,10,manualInput ? muted : purple,.semibold,185,20)
+    txt("Aa  Nhập transcript",327,903,10,manualInput ? purple : muted,.semibold,200,20)
+    if manualInput {
+        box(72,938,478,48,col("F8F9FB"),7,stroke:line)
+        txt("Dán transcript hoặc tóm tắt chính xác nội dung âm thanh…",83,947,10,muted,.regular,450,35)
+        txt("Chỉ gửi phần văn bản này tới dịch vụ AI.",72,997,9,muted,.regular,480,20)
+    } else {
+        box(72,938,478,48,col("FFFDF7"),8,stroke:col("F0E2BF"))
+        box(83,946,32,32,col("FFF3DF"),8)
+        txt("♪",92,952,17,purple,.medium,25,25)
+        txt("Dùng bản thu đã chọn phía trên",124,944,10,ink,.semibold,320,20)
+        txt("mot-chut-binh-yen.mp3  ·  Gửi audio tới dịch vụ AI",124,963,9,muted,.regular,400,18)
+        txt("XPiki cần model hỗ trợ audio và file MP3/WAV ≤14 MB.",72,997,9,muted,.regular,480,20)
+    }
 
     box(54,1038,514,46,purple,10)
     txt(result ? "↻   Tạo video mới" : "▶   Tạo video & nội dung đăng bài",result ? 245 : 196,1052,13,white,.semibold,400,25)
@@ -167,14 +179,14 @@ func screen(_ result: Bool) {
         txt("Based on your transcript/summary · Edit in the .txt file before posting.",640,986,11,muted,.regular,545,40)
     }
     box(0,1170,canvasWidth,30,white,0)
-    txt("Video được xử lý trên máy · Xpiki chỉ nhận transcript/tóm tắt khi bật tạo nội dung",44,1179,9,muted)
+    txt("Audio chỉ gửi khi chọn Dùng audio · Video luôn được xử lý trên máy",44,1179,9,muted)
     txt("Wavely · Thiết kế đề xuất",1061,1179,9,muted)
 }
-for (name, result) in [("Wavely-Xpiki-Setup-Preview.png",false),("Wavely-Xpiki-Content-Preview.png",true)] {
+for (name, manualInput) in [("Wavely-Audio-Mode-Preview.png",false),("Wavely-Transcript-Mode-Preview.png",true)] {
     let img = NSImage(size:NSSize(width:canvasWidth*2,height:canvasHeight*2))
     img.lockFocusFlipped(true)
     NSGraphicsContext.current!.cgContext.scaleBy(x:2,y:2)
-    screen(result)
+    screen(false, manualInput)
     img.unlockFocus()
     let rep = NSBitmapImageRep(data:img.tiffRepresentation!)!
     let url = URL(fileURLWithPath:outDir).appendingPathComponent(name)

@@ -76,7 +76,7 @@ function setEngine(status: EngineStatus): void {
   engineStatus.title = status.message;
   if (!status.available) {
     engineSetupText.textContent = status.message.includes("Chưa tìm thấy")
-      ? "Tải FFmpeg một lần vào thư mục riêng của Wavely. Video được xử lý trên máy; Gemini là tùy chọn và cần Internet."
+      ? "Tải FFmpeg một lần vào thư mục riêng của Wavely. Video được xử lý trên máy; tạo nội dung AI là tùy chọn và cần Internet."
       : `${status.message} Bạn có thể cài engine tương thích ngay trong Wavely.`;
     engineSetup.hidden = false;
     if (!state.installing && !resultMessage.classList.contains("is-error")) resultMessage.textContent = "";
@@ -211,8 +211,10 @@ async function pickAudio(): Promise<void> {
   });
   if (typeof selection !== "string") return;
   state.audioPath = selection;
+  resetPublishingResult();
   const name = stem(selection);
   byId("audioName").textContent = name;
+  byId("publishingAudioFile").textContent = `${name}.${selection.split(".").pop()?.toUpperCase() ?? "AUDIO"} · Chỉ gửi nếu model hỗ trợ audio`;
   byId("audioTrackName").textContent = name;
   byId("audioAction").textContent = "Đổi file";
   byId("audioPreview").hidden = false;
@@ -375,7 +377,7 @@ async function createPublishingContent(request: PublishingRequest): Promise<void
     resultMessage.textContent = "Đã lưu video và file nội dung .txt cùng thư mục.";
     resultMessage.className = "result-message is-success";
   } catch {
-    resultMessage.textContent = "Video đã được lưu. Gemini chưa tạo được nội dung; xem chi tiết và thử lại trong tab Nội dung đăng bài.";
+    resultMessage.textContent = "Video đã được lưu. Dịch vụ AI chưa tạo được nội dung; xem chi tiết và thử lại trong tab Nội dung đăng bài.";
     resultMessage.className = "result-message";
   } finally { setBusy(false); }
 }
