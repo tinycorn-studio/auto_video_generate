@@ -290,6 +290,13 @@ Khi có thay đổi, cập nhật cả bảng mốc ở trên và nhật ký sau
 - Không tạo tag/GitHub Release theo yêu cầu hiện tại; v0.3.0 vẫn là release công khai mới nhất. Rust/C++ toolchain trên máy không tham gia build installer.
 - **Tiếp theo:** tạo annotated tag `v0.4.0` để build và phát hành installer Windows/macOS khi người dùng yêu cầu phát hành.
 
+#### 2026-10-27 · Tối ưu prompt nội dung XPiki
+
+- Bổ sung hướng viết riêng cho YouTube/TikTok/Facebook/Instagram; tách nguồn người dùng thành JSON và giữ quy tắc chỉ viết thông tin có trong transcript/tóm tắt.
+- Đặt độ dài gợi ý theo nền tảng, tránh clickbait, hashtag xu hướng không có căn cứ và lời kêu gọi tương tác máy móc; vẫn dùng một yêu cầu XPiki cho các nền tảng đã chọn.
+- Cho phép 0–5 hashtag và 0–10 từ khóa, chuẩn hóa/loại trùng và kiểm tra độ dài caption gồm hashtag. Giao diện thể hiện rõ kết quả không có đề xuất.
+- Bổ sung kiểm tra hồi quy cho metadata tùy chọn, loại trùng và giới hạn caption Unicode. `npm run build`, định dạng Rust và `git diff --check` đạt; test Rust local bị chặn vì chưa cache `keyring`/thiếu C++ Build Tools, tiếp tục kiểm tra qua CI trước khi mở bản thử.
+
 ## 8. Tài liệu tham khảo
 
 - [FFmpeg showfreqs](https://ffmpeg.org/ffmpeg-filters.html#showfreqs) — chế độ bar/line/dot và các cài đặt phổ tần.

@@ -17,6 +17,8 @@ Mọi thay đổi đáng chú ý của Wavely được ghi tại đây. Định 
 
 ### Changed
 
+- Tối ưu prompt XPiki riêng cho YouTube/TikTok/Facebook/Instagram; ưu tiên nội dung đúng nguồn, cách mở đầu phù hợp và tránh nhồi từ khóa hoặc tương tác câu kéo.
+- Cho phép 0–5 hashtag và 0–10 từ khóa tùy nội dung, chuẩn hóa/loại trùng; tính giới hạn mô tả kèm hashtag và hiển thị rõ khi không có đề xuất.
 - Bố cục hai tab xem trước, preset gọn và phần chỉnh vị trí/kích thước sóng có thể thu gọn theo demo đã duyệt.
 - Chỉ gửi transcript/tóm tắt do người dùng nhập tới XPiki khi bật Gemini; không gửi âm thanh/video, không lưu lịch sử bài đăng và không kiểm tra trùng lặp.
 
