@@ -4,6 +4,10 @@ Mọi thay đổi đáng chú ý của Wavely được ghi tại đây. Định 
 
 ## [Unreleased]
 
+### Fixed
+
+- Đọc đúng `capabilities.supports_json_output` khi kiểm tra model XPiki, tránh từ chối key có quyền dùng chat văn bản và JSON.
+
 ### Added
 
 - Tạo tiêu đề, mô tả, hashtag và từ khóa bằng Gemini 3.8 Flash qua XPiki sau khi xuất video; mặc định English, hỗ trợ tiếng Việt và YouTube/TikTok/Facebook/Instagram.

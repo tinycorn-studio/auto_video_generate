@@ -53,6 +53,9 @@ jobs:
       - name: Build desktop app and installer
         run: npm run tauri:build -- --target "${{ matrix.target }}" --ci
 
+      - name: Check publishing regressions
+        run: cargo test --manifest-path src-tauri/Cargo.toml --target "${{ matrix.target }}" --lib publishing::tests
+
       - name: Upload installer for review
         uses: actions/upload-artifact@v4
         with:
