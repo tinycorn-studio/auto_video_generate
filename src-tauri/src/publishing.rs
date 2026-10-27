@@ -134,6 +134,20 @@ pub async fn xpiki_key_status() -> Result<bool, String> {
     blocking(|| Ok(read_key()?.is_some())).await
 }
 
+fn supports_publishing(model: &Value) -> bool {
+    model["endpoint_families"]
+        .as_array()
+        .is_some_and(|families| {
+            families
+                .iter()
+                .any(|item| item.as_str() == Some("chat_completions"))
+        })
+        && model["input_modalities"]
+            .as_array()
+            .is_some_and(|modalities| modalities.iter().any(|item| item.as_str() == Some("text")))
+        && model["capabilities"]["supports_json_output"] == true
+}
+
 #[tauri::command]
 pub async fn save_xpiki_key(api_key: String) -> Result<(), String> {
     blocking(move || {
@@ -158,20 +172,7 @@ pub async fn save_xpiki_key(api_key: String) -> Result<(), String> {
                     .find(|model| model["id"].as_str() == Some(MODEL))
             })
             .ok_or("Key Xpiki không có quyền truy cập gemini-3.8-flash.")?;
-        if !model["endpoint_families"]
-            .as_array()
-            .is_some_and(|families| {
-                families
-                    .iter()
-                    .any(|item| item.as_str() == Some("chat_completions"))
-            })
-            || !model["input_modalities"]
-                .as_array()
-                .is_some_and(|modalities| {
-                    modalities.iter().any(|item| item.as_str() == Some("text"))
-                })
-            || model["supports_json_output"] != true
-        {
+        if !supports_publishing(model) {
             return Err("Model Xpiki không hỗ trợ chat văn bản với đầu ra JSON.".into());
         }
         credential()?
@@ -521,6 +522,29 @@ mod tests {
 
     fn response(posts: Vec<Value>) -> Value {
         json!({"choices":[{"finish_reason":"stop","message":{"content":json!({"posts":posts}).to_string()}}]})
+    }
+
+    #[test]
+    fn validates_nested_xpiki_model_capabilities() {
+        let model = json!({
+            "endpoint_families": ["chat_completions"],
+            "input_modalities": ["text"],
+            "capabilities": {"supports_json_output": true}
+        });
+        assert!(supports_publishing(&model));
+        let mut unsupported = model.clone();
+        unsupported["capabilities"]["supports_json_output"] = json!(false);
+        assert!(!supports_publishing(&unsupported));
+        unsupported = model.clone();
+        unsupported["endpoint_families"] = json!(["responses"]);
+        assert!(!supports_publishing(&unsupported));
+        unsupported = model.clone();
+        unsupported["input_modalities"] = json!(["image"]);
+        assert!(!supports_publishing(&unsupported));
+        unsupported = model;
+        unsupported.as_object_mut().unwrap().remove("capabilities");
+        unsupported["supports_json_output"] = json!(true);
+        assert!(!supports_publishing(&unsupported));
     }
 
     #[test]
