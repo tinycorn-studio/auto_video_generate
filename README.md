@@ -46,7 +46,7 @@ Tauri chỉ tạo bundle cho hệ điều hành đang build. Installer Windows/m
 - Theo dõi tiến độ, hủy render; video chỉ được đưa vào vị trí đích sau khi xuất thành công.
 - Tự căn giữa và crop ảnh để lấp khung 9:16 hoặc 16:9, không kéo méo ảnh.
 - Tùy chọn tạo nội dung bằng Gemini 3.8 Flash qua Google hoặc XPiki sau khi render; mặc định ngôn ngữ English, hỗ trợ thêm tiếng Việt.
-- Dán transcript hoặc tóm tắt nội dung âm thanh để AI viết chính xác; form hiện chỉ gửi văn bản với cả hai loại key.
+- Chọn dùng trực tiếp file audio (mặc định) hoặc nhập transcript/tóm tắt; XPiki chỉ gửi audio khi model công bố hỗ trợ và giới hạn WAV/MP3 không quá 14 MB.
 - Nội dung riêng cho YouTube, TikTok, Facebook và Instagram, xem theo nền tảng và sao chép từng phần hoặc tất cả.
 - Lưu file `<tên-video>-noi-dung.txt` cạnh MP4; tên được thêm số nếu đã tồn tại, không ghi đè file nội dung cũ.
 - Lưu/thay/xóa Gemini API key trong Keychain macOS hoặc Credential Manager Windows. App tự nhận diện dịch vụ khi lưu; nếu API lỗi, video vẫn giữ nguyên và có thể thử lại riêng phần nội dung.
@@ -64,21 +64,21 @@ Chưa có phím tắt riêng trong phiên bản đầu.
 - `VERSION`: nguồn version duy nhất; `scripts/sync-version.mjs` đồng bộ metadata npm, Cargo và Tauri trước khi build.
 - `PLAN.md`: mục tiêu, tiêu chí chất lượng và trạng thái các mốc triển khai.
 
-FFmpeg là tiến trình native riêng, không phải thư viện nhúng vào Rust. Wavely dò engine đã tải trong app data, resource đóng gói, `PATH` và một số vị trí cài phổ biến. Render video không gửi media lên mạng. Khi bật Gemini, app gửi transcript/tóm tắt tới Google Gemini qua Generate Content hoặc XPiki qua Chat Completions theo key đã lưu; ảnh, âm thanh và video không được tải lên. Form văn bản được giữ nguyên; app chưa tự nghe/chép lời ngay cả khi dùng key Google. API key và thông tin dịch vụ nằm cùng một bản ghi trong kho bảo mật hệ điều hành. Chi tiết: [Google Gemini keys](https://ai.google.dev/gemini-api/docs/api-key), [Google structured output](https://ai.google.dev/gemini-api/docs/generate-content/structured-output), [XPiki Chat Completions](https://docs.xpiki.com/chat-completions-42241316e0).
+FFmpeg là tiến trình native riêng, không phải thư viện nhúng vào Rust. Wavely dò engine đã tải trong app data, resource đóng gói, `PATH` và một số vị trí cài phổ biến. Render video chạy trên máy. Khi bật Gemini, chế độ Audio gửi file âm thanh đã chọn tới Google Gemini hoặc tới XPiki nếu thông tin model công bố hỗ trợ audio; Google dùng Files API cho file lớn hơn 14 MB và Wavely yêu cầu xóa file tải lên sau khi tạo nội dung. Chế độ Transcript chỉ gửi phần văn bản người dùng nhập. Ảnh và video không được tải lên. API key và thông tin dịch vụ nằm cùng một bản ghi trong kho bảo mật hệ điều hành. Chi tiết: [Google Gemini keys](https://ai.google.dev/gemini-api/docs/api-key), [Google structured output](https://ai.google.dev/gemini-api/docs/generate-content/structured-output), [XPiki Chat Completions](https://docs.xpiki.com/chat-completions-42241316e0).
 
 ### Thiết lập Gemini
 
-Prompt được lưu tại `src-tauri/src/publishing_prompt.txt`, có hướng viết riêng cho từng nền tảng và chỉ dựa trên transcript/tóm tắt. App không tra cứu xu hướng hay lượng tìm kiếm. Hashtag (0–5) và từ khóa (0–10) là đề xuất tùy nội dung, có thể để trống; app chuẩn hóa và loại trùng trước khi hiển thị. Giới hạn mô tả của app tính cả hashtag khi ghép vào caption. Tiêu đề ngoài YouTube là nhãn biên tập trong Wavely, không phải trường tiêu đề riêng khi đăng TikTok/Instagram.
+Prompt được lưu tại `src-tauri/src/publishing_prompt.txt`, có hướng viết riêng cho từng nền tảng và dựa trên audio hoặc transcript/tóm tắt theo chế độ đã chọn. App không tra cứu xu hướng hay lượng tìm kiếm. Hashtag (0–5) và từ khóa (0–10) là đề xuất tùy nội dung, có thể để trống; app chuẩn hóa và loại trùng trước khi hiển thị. Giới hạn mô tả của app tính cả hashtag khi ghép vào caption. Tiêu đề ngoài YouTube là nhãn biên tập trong Wavely, không phải trường tiêu đề riêng khi đăng TikTok/Instagram.
 
 1. Nhập key tại ô **Gemini API key** trong **Tạo nội dung đăng bài**, bấm **Lưu**. App tự nhận diện key Google (`AIza…`, `AQ.…`) hoặc XPiki (`sk-…`), kiểm tra model ở đúng dịch vụ rồi mới thay key đã lưu. Định dạng lạ được báo lỗi, không gửi thử key sang cả hai dịch vụ. Việc kiểm tra model không bảo đảm còn quota để sinh nội dung.
 2. Bật công tắc tạo nội dung. Chọn ngôn ngữ (mặc định **English**) và nền tảng.
-3. Dán transcript hoặc tóm tắt chính xác nội dung âm thanh. Chú thích dưới form cho biết văn bản sẽ được gửi tới Google Gemini hay XPiki; không gửi file âm thanh hay video.
+3. Chọn **Dùng audio** (mặc định) để gửi file âm thanh đã chọn, hoặc chọn **Nhập transcript** rồi dán transcript/tóm tắt. Wavely hiển thị nơi nhận dữ liệu và khả năng audio của model trước khi gửi. XPiki chỉ nhận audio khi model công bố hỗ trợ; chế độ này hiện giới hạn WAV/MP3 tối đa 14 MB.
 4. Chọn ảnh/âm thanh rồi bấm **Tạo video & nội dung đăng bài**.
 5. Xem kết quả trong tab **Nội dung đăng bài**, sao chép hoặc mở file `.txt` để chỉnh sửa trước khi đăng.
 
-Chỉ ngôn ngữ, nền tảng và trạng thái công tắc được lưu tại localStorage. API key nằm riêng trong kho bảo mật; transcript và bài đã tạo không được lưu vào lịch sử. Không có cơ sở dữ liệu bài đăng, kiểm tra trùng lặp hay lời hứa mỗi lần sinh sẽ khác nhau. App chỉ giữ video vừa xuất trong bộ nhớ để thử lại/mở file; các file `.txt` do người dùng xuất là đầu ra được yêu cầu. Nếu đóng app rồi muốn tạo lại nội dung, cần xuất video lại.
+Chỉ ngôn ngữ, nền tảng, trạng thái công tắc và chế độ nguồn được lưu tại localStorage. API key nằm riêng trong kho bảo mật; transcript và bài đã tạo không được lưu vào lịch sử. Không có cơ sở dữ liệu bài đăng, kiểm tra trùng lặp hay lời hứa mỗi lần sinh sẽ khác nhau. App chỉ giữ video vừa xuất trong bộ nhớ để thử lại/mở file; các file `.txt` do người dùng xuất là đầu ra được yêu cầu. Nếu đóng app rồi muốn tạo lại nội dung, cần xuất video lại.
 
-Gemini là tính năng tùy chọn, tắt mặc định ở lần đầu. Quota và chi phí phụ thuộc dịch vụ/tài khoản theo key đã lưu và lượng văn bản gửi/nhận. Không cần cài AI hay database trên máy. Key XPiki từ bản cũ được đọc tương thích mà không cần nhập lại. Khi lưu/thay key bằng bản hỗ trợ hai dịch vụ, định dạng bản ghi credential được cập nhật; bản app cũ chỉ hỗ trợ XPiki sẽ cần nhập lại key nếu hạ phiên bản.
+Gemini là tính năng tùy chọn, tắt mặc định ở lần đầu. Quota và chi phí phụ thuộc dịch vụ/tài khoản theo key đã lưu và dữ liệu gửi/nhận (audio hoặc văn bản cùng nội dung tạo ra). Không cần cài AI hay database trên máy. Key XPiki từ bản cũ được đọc tương thích mà không cần nhập lại. Khi lưu/thay key bằng bản hỗ trợ hai dịch vụ, định dạng bản ghi credential được cập nhật; bản app cũ chỉ hỗ trợ XPiki sẽ cần nhập lại key nếu hạ phiên bản.
 
 ## Cấu hình và giới hạn
 

@@ -20,6 +20,7 @@ const PLATFORMS: [&str; 4] = ["youtube", "tiktok", "facebook", "instagram"];
 #[derive(Clone)]
 pub struct Export {
     video: PathBuf,
+    audio: PathBuf,
     text: Option<PathBuf>,
 }
 
@@ -30,13 +31,21 @@ pub struct PublishingState {
     running: Arc<AtomicBool>,
 }
 
-pub fn register_export(app: &AppHandle, video: &Path) {
+pub fn register_export(app: &AppHandle, video: &Path, audio: &Path) {
     if let Ok(mut export) = app.state::<PublishingState>().export.lock() {
         *export = Some(Export {
             video: video.to_path_buf(),
+            audio: audio.to_path_buf(),
             text: None,
         });
     }
+}
+
+#[derive(Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+enum SourceMode {
+    Audio,
+    Transcript,
 }
 
 #[derive(Deserialize)]
@@ -44,7 +53,13 @@ pub fn register_export(app: &AppHandle, video: &Path) {
 pub struct PublishingRequest {
     language: String,
     platforms: Vec<String>,
-    transcript: String,
+    #[serde(default = "default_source_mode")]
+    source_mode: SourceMode,
+    transcript: Option<String>,
+}
+
+fn default_source_mode() -> SourceMode {
+    SourceMode::Transcript
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -73,6 +88,13 @@ pub struct PublishingResult {
 #[derive(Serialize)]
 pub struct KeyStatus {
     saved: bool,
+    provider: Option<Provider>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AudioSupport {
+    supported: bool,
     provider: Option<Provider>,
 }
 
@@ -111,14 +133,14 @@ fn client() -> Result<Client, String> {
         .timeout(Duration::from_secs(180))
         .redirect(reqwest::redirect::Policy::none())
         .build()
-        .map_err(|_| "Không khởi tạo được kết nối Gemini.".into())
+        .map_err(|_| "Không khởi tạo được kết nối API.".into())
 }
 
 fn network_error(error: reqwest::Error) -> String {
     if error.is_timeout() {
-        "Gemini phản hồi quá lâu. Hãy thử lại; video vẫn được giữ nguyên.".into()
+        "Dịch vụ AI phản hồi quá lâu. Hãy thử lại; video vẫn được giữ nguyên.".into()
     } else {
-        "Không kết nối được Gemini. Kiểm tra Internet rồi thử lại.".into()
+        "Không kết nối được dịch vụ AI. Kiểm tra Internet rồi thử lại.".into()
     }
 }
 
@@ -128,12 +150,12 @@ fn checked(response: Response) -> Result<Response, String> {
     }
     // Do not expose service response bodies, headers, or keys to the UI/logs.
     Err(match response.status().as_u16() {
-        400 => "Gemini từ chối yêu cầu. Kiểm tra model và nội dung gửi lên.",
-        401 | 403 => "API key Gemini không hợp lệ hoặc không có quyền truy cập model.",
-        404 => "Gemini không tìm thấy model hoặc endpoint được yêu cầu.",
-        429 => "Gemini đã hết hạn mức hoặc đang giới hạn lượt gọi. Kiểm tra quota rồi thử lại.",
-        500..=599 => "Gemini đang gặp lỗi máy chủ. Hãy thử lại sau.",
-        _ => "Gemini không xử lý được yêu cầu. Hãy thử lại sau.",
+        400 => "Dịch vụ AI từ chối yêu cầu. Kiểm tra model và nội dung gửi lên.",
+        401 | 403 => "API key không hợp lệ hoặc không có quyền truy cập model.",
+        404 => "Không tìm thấy model hoặc endpoint được yêu cầu.",
+        429 => "API đã hết hạn mức hoặc đang giới hạn lượt gọi. Kiểm tra quota rồi thử lại.",
+        500..=599 => "Dịch vụ AI đang gặp lỗi máy chủ. Hãy thử lại sau.",
+        _ => "Dịch vụ AI không xử lý được yêu cầu. Hãy thử lại sau.",
     }
     .into())
 }
@@ -143,12 +165,29 @@ async fn blocking<T: Send + 'static>(
 ) -> Result<T, String> {
     tauri::async_runtime::spawn_blocking(work)
         .await
-        .map_err(|_| "Tác vụ Gemini bị gián đoạn.".to_string())?
+        .map_err(|_| "Tác vụ tạo nội dung bị gián đoạn.".to_string())?
 }
 
 #[tauri::command]
 pub async fn publishing_key_status() -> Result<KeyStatus, String> {
     blocking(|| Ok(KeyStatus::from_connection(read_connection()?.as_ref()))).await
+}
+
+#[tauri::command]
+pub async fn publishing_audio_support() -> Result<AudioSupport, String> {
+    blocking(|| {
+        let Some(connection) = read_connection()? else {
+            return Ok(AudioSupport {
+                supported: false,
+                provider: None,
+            });
+        };
+        Ok(AudioSupport {
+            supported: provider::audio_support(&client()?, &connection)?,
+            provider: Some(connection.provider),
+        })
+    })
+    .await
 }
 
 fn supports_publishing(model: &Value) -> bool {
@@ -205,14 +244,14 @@ impl PublishingRequest {
         {
             return Err("Hãy chọn ít nhất một nền tảng hợp lệ.".into());
         }
-        if self.transcript.trim().is_empty() {
-            return Err(
-                "Hãy dán transcript hoặc tóm tắt nội dung âm thanh để Gemini viết bài chính xác."
-                    .into(),
-            );
-        }
-        if self.transcript.chars().count() > 40000 {
-            return Err("Transcript hoặc tóm tắt tối đa 40.000 ký tự.".into());
+        if self.source_mode == SourceMode::Transcript {
+            let transcript = self.transcript.as_deref().unwrap_or_default();
+            if transcript.trim().is_empty() {
+                return Err("Hãy dán transcript hoặc tóm tắt nội dung âm thanh.".into());
+            }
+            if transcript.chars().count() > 40000 {
+                return Err("Transcript hoặc tóm tắt tối đa 40.000 ký tự.".into());
+            }
         }
         Ok(())
     }
@@ -242,7 +281,11 @@ fn request_body(request: &PublishingRequest) -> Value {
             {"role":"user","content":json!({
                 "language": language,
                 "platforms": request.platforms,
-                "source_text": request.transcript,
+                "source_mode": match request.source_mode {
+                    SourceMode::Audio => "audio",
+                    SourceMode::Transcript => "transcript",
+                },
+                "source_text": request.transcript.as_deref().unwrap_or_default(),
             }).to_string()}
         ],
         "response_format":{"type":"json_object"},
@@ -255,9 +298,9 @@ fn parse_content(value: Value, request: &PublishingRequest) -> Result<Vec<Post>,
     let candidate = value["choices"]
         .as_array()
         .and_then(|a| a.first())
-        .ok_or("Gemini không trả về nội dung. Hãy thử lại sau.")?;
+        .ok_or("Dịch vụ AI không trả về nội dung. Hãy thử lại sau.")?;
     if candidate["finish_reason"].as_str() != Some("stop") {
-        return Err("Gemini chưa tạo được nội dung hoàn chỉnh. Hãy thử lại.".into());
+        return Err("Dịch vụ AI chưa tạo được nội dung hoàn chỉnh. Hãy thử lại.".into());
     }
     let content = &candidate["message"]["content"];
     let text = if let Some(text) = content.as_str() {
@@ -268,12 +311,12 @@ fn parse_content(value: Value, request: &PublishingRequest) -> Result<Vec<Post>,
             .filter_map(|part| part["text"].as_str())
             .collect::<String>()
     } else {
-        return Err("Gemini trả về nội dung không hợp lệ.".into());
+        return Err("Dịch vụ AI trả về nội dung không hợp lệ.".into());
     };
     let mut content: Content = serde_json::from_str(&text)
-        .map_err(|_| "Nội dung Gemini trả về không đúng định dạng JSON. Hãy thử lại.")?;
+        .map_err(|_| "Nội dung do dịch vụ AI tạo không đúng định dạng JSON. Hãy thử lại.")?;
     if content.posts.len() != request.platforms.len() {
-        return Err("Gemini chưa tạo đủ các nền tảng đã chọn.".into());
+        return Err("Dịch vụ AI chưa tạo đủ các nền tảng đã chọn.".into());
     }
     let mut ordered = Vec::new();
     for platform in &request.platforms {
@@ -281,7 +324,7 @@ fn parse_content(value: Value, request: &PublishingRequest) -> Result<Vec<Post>,
             .posts
             .iter()
             .position(|p| &p.platform == platform)
-            .ok_or("Gemini trả về nền tảng không đúng yêu cầu.")?;
+            .ok_or("Dịch vụ AI trả về nền tảng không đúng yêu cầu.")?;
         let mut post = content.posts.remove(index);
         post.title = post.title.trim().to_string();
         post.description = post.description.trim().to_string();
@@ -297,7 +340,7 @@ fn parse_content(value: Value, request: &PublishingRequest) -> Result<Vec<Post>,
             || post.description.chars().count() > description_limit
         {
             return Err(
-                "Nội dung Gemini thiếu trường hoặc vượt giới hạn nền tảng. Hãy thử lại.".into(),
+                "Nội dung do dịch vụ AI tạo thiếu trường hoặc vượt giới hạn nền tảng. Hãy thử lại.".into(),
             );
         }
         let mut seen_tags = HashSet::new();
@@ -310,7 +353,7 @@ fn parse_content(value: Value, request: &PublishingRequest) -> Result<Vec<Post>,
                     .collect::<String>()
             );
             if tag == "#" || tag.chars().count() > 100 {
-                return Err("Hashtag Gemini trả về không hợp lệ.".into());
+                return Err("Hashtag do dịch vụ AI tạo không hợp lệ.".into());
             }
         }
         post.hashtags
@@ -319,13 +362,13 @@ fn parse_content(value: Value, request: &PublishingRequest) -> Result<Vec<Post>,
         for keyword in &mut post.keywords {
             *keyword = keyword.split_whitespace().collect::<Vec<_>>().join(" ");
             if keyword.is_empty() || keyword.chars().count() > 200 {
-                return Err("Từ khóa Gemini trả về không hợp lệ.".into());
+                return Err("Từ khóa do dịch vụ AI tạo không hợp lệ.".into());
             }
         }
         post.keywords
             .retain(|keyword| seen_keywords.insert(keyword.to_lowercase()));
         if post.hashtags.len() > 5 || post.keywords.len() > 10 {
-            return Err("Nội dung Gemini có quá nhiều hashtag hoặc từ khóa. Hãy thử lại.".into());
+            return Err("Nội dung do dịch vụ AI tạo có quá nhiều hashtag hoặc từ khóa. Hãy thử lại.".into());
         }
         let caption_length = post.description.chars().count()
             + if post.hashtags.is_empty() {
@@ -409,20 +452,45 @@ fn generate(
     request: PublishingRequest,
 ) -> Result<PublishingResult, String> {
     request.validate()?;
-    let connection = read_connection()?.ok_or("Hãy lưu API key Gemini trước khi tạo nội dung.")?;
+    let connection = read_connection()?.ok_or("Hãy lưu API key Google Gemini hoặc XPiki trước khi tạo nội dung.")?;
     if !export.video.is_file() {
         return Err("Không còn tìm thấy video vừa xuất.".into());
     }
-    progress(&app, "Đang chuẩn bị văn bản cho Gemini…");
+    progress(&app, "Đang chuẩn bị nội dung đăng bài…");
     let client = client()?;
-    progress(&app, "Gemini đang viết nội dung đăng bài…");
-    let value: Value = checked(
-        provider::generation_request(&client, &connection, &request_body(&request))
-            .send()
-            .map_err(network_error)?,
-    )?
-    .json()
-    .map_err(|_| "Không đọc được phản hồi Gemini.")?;
+    let prepared_audio = if request.source_mode == SourceMode::Audio {
+        if !export.audio.is_file() {
+            return Err("Không còn tìm thấy file âm thanh vừa dùng để xuất video.".into());
+        }
+        progress(&app, "Đang chuẩn bị file âm thanh cho dịch vụ AI…");
+        Some(provider::prepare_audio(&client, &connection, &export.audio)?)
+    } else {
+        None
+    };
+    progress(&app, "Đang tạo nội dung đăng bài…");
+    let generated = (|| {
+        let response = provider::generation_request(
+            &client,
+            &connection,
+            &request_body(&request),
+            prepared_audio.as_ref(),
+        )
+        .send()
+        .map_err(network_error)?;
+        if connection.provider == Provider::Xpiki
+            && prepared_audio.is_some()
+            && response.status().as_u16() == 400
+        {
+            return Err("XPiki báo model có audio nhưng endpoint từ chối định dạng audio. Hãy chuyển sang nhập transcript hoặc dùng model audio tương thích.".into());
+        }
+        checked(response)?
+            .json()
+            .map_err(|_| "Không đọc được phản hồi từ dịch vụ AI.".to_string())
+    })();
+    if let Some(audio) = prepared_audio.as_ref() {
+        provider::cleanup_audio(&client, &connection, audio);
+    }
+    let value: Value = generated?;
     let posts = parse_content(
         provider::normalize_response(connection.provider, value)?,
         &request,
@@ -533,7 +601,8 @@ mod tests {
         PublishingRequest {
             language: "en".into(),
             platforms: vec!["youtube".into(), "tiktok".into()],
-            transcript: "A quiet instrumental recording for relaxation.".into(),
+            source_mode: SourceMode::Transcript,
+            transcript: Some("A quiet instrumental recording for relaxation.".into()),
         }
     }
 

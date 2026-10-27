@@ -2,15 +2,19 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 
-export type PublishingRequest = { language: "en" | "vi"; platforms: string[]; transcript: string };
+export type PublishingRequest = { sourceMode: "audio" | "transcript"; language: "en" | "vi"; platforms: string[]; transcript?: string };
 type Post = { platform: string; title: string; description: string; hashtags: string[]; keywords: string[] };
 type PublishingResult = { posts: Post[]; textPath: string; text: string; warning: string | null };
 type KeyStatus = { saved: boolean; provider: "google" | "xpiki" | null };
+type AudioSupport = { supported: boolean; provider: "google" | "xpiki" | null };
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const platformNames: Record<string, string> = { youtube: "YouTube", tiktok: "TikTok", facebook: "Facebook", instagram: "Instagram" };
 const preferenceKey = "wavely-publishing-preferences";
 let hasKey = false;
 let keyProvider: KeyStatus["provider"] = null;
+let audioSupported: boolean | null = null;
+let audioSupportChecked = false;
+let audioSupportProvider: AudioSupport["provider"] = null;
 let busy = false;
 let savingKey = false;
 let current: PublishingResult | null = null;
@@ -18,6 +22,10 @@ let selectedPost: Post | null = null;
 let onChange: (keySaved?: boolean) => void = () => {};
 
 export function publishingEnabled(): boolean { return $<HTMLInputElement>("publishingEnabled").checked; }
+
+function sourceMode(): PublishingRequest["sourceMode"] {
+  return $<HTMLInputElement>("publishingSourceTranscript").checked ? "transcript" : "audio";
+}
 
 function platforms(): string[] {
   return Array.from(document.querySelectorAll<HTMLInputElement>(".platform-options input:checked")).map((input) => input.value);
@@ -39,17 +47,70 @@ function keyStatus(message: string, error = false): void {
 }
 
 function updateKeyState(): void {
-  $("geminiBadge").textContent = hasKey ? "✦ Gemini · đã kết nối" : "✦ Gemini · chưa lưu key";
+  const providerName = keyProvider === "google" ? "Google Gemini" : keyProvider === "xpiki" ? "XPiki" : "AI";
+  $("geminiBadge").textContent = hasKey ? `✦ ${providerName} · đã kết nối` : "✦ AI · chưa lưu key";
   $("geminiBadge").classList.toggle("has-key", hasKey);
   $("deleteGeminiKey").hidden = !hasKey;
-  $<HTMLInputElement>("geminiKey").placeholder = hasKey ? "•••••••••••••••• · Nhập key Gemini mới để thay" : "Nhập Gemini API key";
-  const destination = keyProvider === "google" ? "Google Gemini" : keyProvider === "xpiki" ? "XPiki" : "dịch vụ theo key bạn lưu";
-  $("geminiDisclosure").textContent = `Transcript/tóm tắt bạn nhập sẽ được gửi tới ${destination} khi bật tạo nội dung. Wavely không gửi âm thanh hoặc video. Cần Internet và có thể phát sinh phí theo quota API.`;
+  $<HTMLInputElement>("geminiKey").placeholder = hasKey ? "•••••••••••••••• · Nhập key mới để thay" : "Nhập Google Gemini hoặc XPiki API key";
+  updateSourceMode();
+}
+
+function updateSourceMode(): void {
+  const mode = sourceMode();
+  const audio = mode === "audio";
+  const destination = keyProvider === "google" ? "Google Gemini" : keyProvider === "xpiki" ? "XPiki" : "dịch vụ theo key đã lưu";
+  $("publishingAudioSource").hidden = !audio;
+  $("publishingTranscriptField").hidden = audio;
+  $("publishingAudioSupport").hidden = !audio;
+  $<HTMLTextAreaElement>("publishingTranscript").required = !audio;
+  if (audio) {
+    const supportNote = $("publishingAudioSupport");
+    supportNote.className = "audio-support-note";
+    if (!hasKey) {
+      supportNote.textContent = "Lưu API key để kiểm tra model có nhận audio hay không.";
+    } else if (!audioSupportChecked) {
+      supportNote.textContent = "Đang kiểm tra khả năng nhận audio của model…";
+    } else if (audioSupported === null) {
+      supportNote.textContent = "Chưa kiểm tra được model. Wavely sẽ thử lại khi bạn tạo nội dung.";
+    } else if (audioSupported) {
+      supportNote.classList.add("is-success");
+      supportNote.textContent = audioSupportProvider === "xpiki"
+        ? "Model XPiki báo hỗ trợ audio; cần file MP3/WAV không quá 14 MB."
+        : "Google Gemini hỗ trợ audio. File được gửi tới Google khi tạo nội dung.";
+    } else {
+      supportNote.classList.add("is-error");
+      supportNote.textContent = "Model XPiki hiện chỉ nhận văn bản. Chuyển sang Nhập transcript hoặc dùng key Google Gemini.";
+    }
+  }
+  $("geminiDisclosure").textContent = audio
+    ? !hasKey
+      ? "Khi bạn lưu API key, Wavely sẽ kiểm tra hỗ trợ audio trước khi gửi file; video vẫn xử lý trên máy."
+      : keyProvider === "xpiki" && audioSupported === false
+        ? "Model XPiki hiện không nhận audio nên Wavely sẽ không gửi file. Chuyển sang transcript hoặc dùng Google Gemini. Video vẫn xử lý trên máy."
+        : `Wavely kiểm tra khả năng nhận audio của ${destination} trước khi gửi file; video vẫn xử lý trên máy. Cần Internet và có thể phát sinh phí API.`
+    : `Chỉ transcript/tóm tắt bạn nhập được gửi tới ${destination}; Wavely không gửi audio hoặc video ở chế độ này. Cần Internet và có thể phát sinh phí API.`;
+}
+
+async function refreshAudioSupport(): Promise<void> {
+  audioSupported = null;
+  audioSupportChecked = false;
+  audioSupportProvider = keyProvider;
+  updateSourceMode();
+  if (!hasKey) return;
+  try {
+    const status = await invoke<AudioSupport>("publishing_audio_support");
+    audioSupported = status.supported;
+    audioSupportProvider = status.provider;
+  } catch {
+    audioSupported = null;
+  }
+  audioSupportChecked = true;
+  updateSourceMode();
 }
 
 function savePreferences(): void {
   // Only user preferences. Never store a key, prompt, generated post, or history here.
-  try { localStorage.setItem(preferenceKey, JSON.stringify({ enabled: publishingEnabled(), language: $<HTMLSelectElement>("publishingLanguage").value, platforms: platforms() })); }
+  try { localStorage.setItem(preferenceKey, JSON.stringify({ enabled: publishingEnabled(), language: $<HTMLSelectElement>("publishingLanguage").value, platforms: platforms(), sourceMode: sourceMode() })); }
   catch { /* Preferences are optional if storage is unavailable. */ }
 }
 
@@ -57,13 +118,16 @@ export function capturePublishingRequest(): PublishingRequest | null {
   if (!publishingEnabled()) return null;
   if (savingKey) throw new Error("Đang lưu API key. Hãy chờ hoàn tất.");
   if ($<HTMLInputElement>("geminiKey").value.trim()) throw new Error("Hãy bấm Lưu để kiểm tra và lưu API key vừa nhập.");
-  if (!hasKey) throw new Error("Hãy nhập và lưu Gemini API key trước khi tạo nội dung.");
+  if (!hasKey) throw new Error("Hãy nhập và lưu API key Google Gemini hoặc XPiki trước khi tạo nội dung.");
   const selected = platforms();
   if (!selected.length) throw new Error("Hãy chọn ít nhất một nền tảng để tạo nội dung.");
+  const mode = sourceMode();
+  if (mode === "audio" && audioSupported === false) throw new Error("Model XPiki hiện chỉ nhận văn bản. Chuyển sang Nhập transcript hoặc dùng key Google Gemini.");
+  if (mode === "audio" && keyProvider === "xpiki" && audioSupportChecked && audioSupported === null) throw new Error("Chưa kiểm tra được model XPiki. Kiểm tra kết nối hoặc chuyển sang Nhập transcript trước khi xuất video.");
   const transcript = $<HTMLTextAreaElement>("publishingTranscript").value.trim();
-  if (!transcript) throw new Error("Hãy dán transcript hoặc tóm tắt nội dung âm thanh.");
+  if (mode === "transcript" && !transcript) throw new Error("Hãy dán transcript hoặc tóm tắt nội dung âm thanh.");
   if (transcript.length > 40000) throw new Error("Transcript hoặc tóm tắt tối đa 40.000 ký tự.");
-  return { language: $<HTMLSelectElement>("publishingLanguage").value as "en" | "vi", platforms: selected, transcript };
+  return { sourceMode: mode, language: $<HTMLSelectElement>("publishingLanguage").value as "en" | "vi", platforms: selected, ...(mode === "transcript" ? { transcript } : {}) };
 }
 
 function selectTab(content: boolean): void {
@@ -84,7 +148,7 @@ export function resetPublishingResult(): void {
   $("publishingStatus").className = "publishing-status";
   $("publishingStatus").textContent = publishingEnabled()
     ? "Nội dung sẽ được tạo sau khi xuất video xong."
-    : "Bật tạo nội dung đăng bài để dùng Gemini sau khi xuất video.";
+    : "Bật tạo nội dung đăng bài để tạo nội dung sau khi xuất video.";
   selectTab(false);
 }
 
@@ -109,7 +173,9 @@ export async function generatePublishing(request: PublishingRequest): Promise<vo
   $("retryPublishing").hidden = true;
   $("contentActionStatus").textContent = "";
   $("publishingStatus").className = "publishing-status is-generating";
-  $("publishingStatus").textContent = "Video đã xuất xong. Gemini đang xử lý transcript/tóm tắt…";
+  $("publishingStatus").textContent = request.sourceMode === "audio"
+    ? "Video đã xuất xong. Dịch vụ AI đang phân tích audio…"
+    : "Video đã xuất xong. Dịch vụ AI đang xử lý transcript/tóm tắt…";
   selectTab(true);
   try {
     current = await invoke<PublishingResult>("generate_publishing_content", { request });
@@ -148,10 +214,15 @@ export async function initPublishing(change: (keySaved?: boolean) => void, retry
       const p = stored as Record<string, unknown>;
       $<HTMLInputElement>("publishingEnabled").checked = p.enabled === true;
       $<HTMLSelectElement>("publishingLanguage").value = p.language === "vi" ? "vi" : "en";
+      $<HTMLInputElement>("publishingSourceTranscript").checked = p.sourceMode === "transcript";
+      $<HTMLInputElement>("publishingSourceAudio").checked = p.sourceMode !== "transcript";
       if (Array.isArray(p.platforms)) document.querySelectorAll<HTMLInputElement>(".platform-options input").forEach((input) => { input.checked = (p.platforms as unknown[]).includes(input.value); });
     }
   } catch { /* Keep English and the default platforms if preferences are invalid. */ }
   $("publishingEnabled").addEventListener("change", () => { updateControls(); savePreferences(); onChange(); });
+  document.querySelectorAll<HTMLInputElement>('input[name="publishingSourceMode"]').forEach((input) => input.addEventListener("change", () => {
+    updateSourceMode(); savePreferences(); onChange();
+  }));
   $("publishingLanguage").addEventListener("change", savePreferences);
   document.querySelectorAll<HTMLInputElement>(".platform-options input").forEach((input) => input.addEventListener("change", savePreferences));
   $("videoTab").addEventListener("click", () => selectTab(false));
@@ -172,18 +243,19 @@ export async function initPublishing(change: (keySaved?: boolean) => void, retry
   });
   $("saveGeminiKey").addEventListener("click", () => void (async () => {
     const key = $<HTMLInputElement>("geminiKey").value.trim();
-    if (!key) { keyStatus("Hãy nhập Gemini API key trước khi lưu.", true); return; }
-    savingKey = true; updateControls(); keyStatus("Đang nhận diện và kiểm tra kết nối Gemini…");
+    if (!key) { keyStatus("Hãy nhập API key Google Gemini hoặc XPiki trước khi lưu.", true); return; }
+    savingKey = true; updateControls(); keyStatus("Đang nhận diện và kiểm tra API key…");
     try {
       const status = await invoke<KeyStatus>("save_publishing_key", { apiKey: key });
       hasKey = status.saved;
       keyProvider = status.provider;
+      await refreshAudioSupport();
       $<HTMLInputElement>("geminiKey").value = "";
       $<HTMLInputElement>("geminiKey").type = "password";
       $("toggleGeminiKey").textContent = "Hiện";
       $("toggleGeminiKey").setAttribute("aria-label", "Hiện API key vừa nhập");
       $("toggleGeminiKey").setAttribute("aria-pressed", "false");
-      keyStatus("✓ Đã kết nối Gemini và lưu an toàn trên máy.");
+      keyStatus(`✓ Đã kết nối ${status.provider === "xpiki" ? "XPiki" : "Google Gemini"} và lưu an toàn trên máy.`);
       onChange(true);
     } catch (error) { keyStatus(String(error), true); }
     finally { savingKey = false; updateKeyState(); updateControls(); onChange(); }
@@ -191,7 +263,7 @@ export async function initPublishing(change: (keySaved?: boolean) => void, retry
   $("deleteGeminiKey").addEventListener("click", () => void (async () => {
     savingKey = true; updateControls();
     try {
-      await invoke("delete_publishing_key"); hasKey = false; keyProvider = null; $<HTMLInputElement>("geminiKey").value = "";
+      await invoke("delete_publishing_key"); hasKey = false; keyProvider = null; audioSupported = null; audioSupportChecked = false; audioSupportProvider = null; $<HTMLInputElement>("geminiKey").value = "";
       $<HTMLInputElement>("publishingEnabled").checked = false; savePreferences();
       keyStatus("Đã xóa API key khỏi kho bảo mật.");
     }
@@ -213,7 +285,8 @@ export async function initPublishing(change: (keySaved?: boolean) => void, retry
     const status = await invoke<KeyStatus>("publishing_key_status");
     hasKey = status.saved; keyProvider = status.provider;
     keyStatus(hasKey ? "✓ Đã lưu an toàn trên máy." : "Hỗ trợ key Google Gemini và XPiki; tự nhận diện.");
+    if (hasKey) await refreshAudioSupport();
   }
   catch (error) { keyStatus(String(error), true); }
-  updateKeyState(); updateControls(); onChange();
+  updateKeyState(); updateSourceMode(); updateControls(); onChange();
 }

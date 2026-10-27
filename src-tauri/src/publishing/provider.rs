@@ -1,9 +1,43 @@
 use reqwest::blocking::{Client, RequestBuilder};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use std::path::Path;
 use std::time::Duration;
 
 use super::{checked, network_error, MODEL};
+
+const INLINE_AUDIO_LIMIT: u64 = 14 * 1024 * 1024;
+const BASE64_TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+fn encode_base64(bytes: &[u8]) -> String {
+    let mut encoded = String::with_capacity((bytes.len() + 2) / 3 * 4);
+    for chunk in bytes.chunks(3) {
+        let first = chunk[0];
+        let second = chunk.get(1).copied().unwrap_or_default();
+        let third = chunk.get(2).copied().unwrap_or_default();
+        encoded.push(BASE64_TABLE[(first >> 2) as usize] as char);
+        encoded.push(BASE64_TABLE[(((first & 0x03) << 4) | (second >> 4)) as usize] as char);
+        if chunk.len() > 1 {
+            encoded.push(BASE64_TABLE[(((second & 0x0f) << 2) | (third >> 6)) as usize] as char);
+        } else {
+            encoded.push('=');
+        }
+        if chunk.len() > 2 {
+            encoded.push(BASE64_TABLE[(third & 0x3f) as usize] as char);
+        } else {
+            encoded.push('=');
+        }
+    }
+    encoded
+}
+
+pub(super) struct PreparedAudio {
+    mime_type: String,
+    format: String,
+    inline_data: Option<String>,
+    file_uri: Option<String>,
+    remote_name: Option<String>,
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -132,14 +166,190 @@ pub(super) fn verify(client: &Client, connection: &Connection) -> Result<(), Str
             .map_err(network_error)?,
     )?
     .json()
-    .map_err(|_| "Dịch vụ Gemini trả về thông tin model không hợp lệ.".to_string())?;
+    .map_err(|_| "Dịch vụ API trả về thông tin model không hợp lệ.".to_string())?;
     validate_model(connection.provider, &metadata)
 }
 
-fn google_body(chat: &Value) -> Value {
+fn audio_mime(path: &Path) -> Result<(String, String), String> {
+    match path.extension().and_then(|extension| extension.to_str()).map(str::to_ascii_lowercase).as_deref() {
+        Some("wav") => Ok(("audio/wav".into(), "wav".into())),
+        Some("mp3") => Ok(("audio/mp3".into(), "mp3".into())),
+        Some("m4a") => Ok(("audio/m4a".into(), "m4a".into())),
+        Some("aac") => Ok(("audio/aac".into(), "aac".into())),
+        Some("flac") => Ok(("audio/flac".into(), "flac".into())),
+        Some("ogg") => Ok(("audio/ogg".into(), "ogg".into())),
+        Some("opus") => Ok(("audio/opus".into(), "opus".into())),
+        _ => Err("Định dạng audio này chưa được hỗ trợ. Hãy dùng WAV, MP3, M4A, AAC, FLAC, OGG hoặc Opus.".into()),
+    }
+}
+
+fn xpiki_model(client: &Client, connection: &Connection) -> Result<Value, String> {
+    let models: Value = checked(
+        validation_request(client, connection)
+            .send()
+            .map_err(network_error)?,
+    )?
+    .json()
+    .map_err(|_| "XPiki trả về thông tin model không hợp lệ.".to_string())?;
+    models["data"]
+        .as_array()
+        .and_then(|list| list.iter().find(|model| model["id"].as_str() == Some(MODEL)))
+        .cloned()
+        .ok_or_else(|| "Key XPiki không có quyền truy cập gemini-3.8-flash.".into())
+}
+
+fn xpiki_supports_audio(model: &Value) -> bool {
+    super::supports_publishing(model)
+        && model["input_modalities"].as_array().is_some_and(|modalities| {
+            modalities.iter().any(|item| item.as_str() == Some("audio"))
+        })
+}
+
+pub(super) fn audio_support(
+    client: &Client,
+    connection: &Connection,
+) -> Result<bool, String> {
+    match connection.provider {
+        Provider::Google => Ok(true),
+        Provider::Xpiki => Ok(xpiki_supports_audio(&xpiki_model(client, connection)?)),
+    }
+}
+
+fn upload_google_file(
+    client: &Client,
+    connection: &Connection,
+    path: &Path,
+    mime_type: &str,
+) -> Result<PreparedAudio, String> {
+    use reqwest::blocking::Body;
+    use std::fs::File;
+
+    let size = path.metadata().map_err(|_| "Không đọc được dung lượng file audio.")?.len();
+    let response = client
+        .post("https://generativelanguage.googleapis.com/upload/v1beta/files")
+        .header("x-goog-api-key", &connection.key)
+        .header("X-Goog-Upload-Protocol", "resumable")
+        .header("X-Goog-Upload-Command", "start")
+        .header("X-Goog-Upload-Header-Content-Length", size.to_string())
+        .header("X-Goog-Upload-Header-Content-Type", mime_type)
+        .header("Content-Type", "application/json")
+        .json(&json!({"file":{"display_name":"wavely-audio-input"}}))
+        .send()
+        .map_err(network_error)?;
+    let response = checked(response)?;
+    let upload_url = response
+        .headers()
+        .get("x-goog-upload-url")
+        .and_then(|value| value.to_str().ok())
+        .ok_or("Google chưa trả về địa chỉ upload audio.")?;
+    let parsed_url = reqwest::Url::parse(upload_url)
+        .map_err(|_| "Google trả về địa chỉ upload không hợp lệ.")?;
+    if parsed_url.scheme() != "https" || parsed_url.host_str() != Some("generativelanguage.googleapis.com") {
+        return Err("Google trả về địa chỉ upload không an toàn.".into());
+    }
+    let file = File::open(path).map_err(|_| "Không mở được file audio để upload.")?;
+    let uploaded: Value = client
+        .post(parsed_url)
+        .header("X-Goog-Upload-Offset", "0")
+        .header("X-Goog-Upload-Command", "upload, finalize")
+        .header("Content-Length", size.to_string())
+        .body(Body::new(file))
+        .send()
+        .map_err(network_error)
+        .and_then(checked)?
+        .json()
+        .map_err(|_| "Google trả về thông tin file audio không hợp lệ.")?;
+    let file = &uploaded["file"];
+    let uri = file["uri"]
+        .as_str()
+        .filter(|uri| {
+            reqwest::Url::parse(uri).is_ok_and(|parsed| {
+                parsed.scheme() == "https"
+                    && parsed.host_str() == Some("generativelanguage.googleapis.com")
+                    && uri.len() <= 4096
+            })
+        })
+        .ok_or("Google chưa trả về URI hợp lệ cho file audio.")?;
+    let name = file["name"]
+        .as_str()
+        .filter(|name| name.starts_with("files/") && name.len() <= 256)
+        .ok_or("Google chưa trả về mã file để dọn sau khi xử lý.")?;
+    Ok(PreparedAudio {
+        mime_type: mime_type.to_string(),
+        format: String::new(),
+        inline_data: None,
+        file_uri: Some(uri.to_string()),
+        remote_name: Some(name.to_string()),
+    })
+}
+
+pub(super) fn prepare_audio(
+    client: &Client,
+    connection: &Connection,
+    path: &Path,
+) -> Result<PreparedAudio, String> {
+    let (mime_type, format) = audio_mime(path)?;
+    let size = path.metadata().map_err(|_| "Không đọc được dung lượng file audio.")?.len();
+    match connection.provider {
+        Provider::Google if size > INLINE_AUDIO_LIMIT => {
+            upload_google_file(client, connection, path, &mime_type)
+        }
+        Provider::Google => {
+            let bytes = std::fs::read(path).map_err(|_| "Không đọc được file audio.")?;
+            Ok(PreparedAudio {
+                mime_type,
+                format,
+                inline_data: Some(encode_base64(&bytes)),
+                file_uri: None,
+                remote_name: None,
+            })
+        }
+        Provider::Xpiki => {
+            let model = xpiki_model(client, connection)?;
+            if !xpiki_supports_audio(&model) {
+                return Err("Model XPiki gemini-3.8-flash hiện chỉ công bố nhận văn bản. Hãy chọn key Google Gemini hoặc chuyển sang chế độ nhập transcript.".into());
+            }
+            if !["wav", "mp3"].contains(&format.as_str()) {
+                return Err("Model audio qua XPiki hiện chỉ hỗ trợ file WAV hoặc MP3. Hãy chuyển đổi file rồi thử lại.".into());
+            }
+            if size > INLINE_AUDIO_LIMIT {
+                return Err("File audio lớn hơn 14 MB chưa được hỗ trợ với XPiki. Hãy dùng file MP3/WAV nhỏ hơn hoặc Google Gemini.".into());
+            }
+            let bytes = std::fs::read(path).map_err(|_| "Không đọc được file audio.")?;
+            Ok(PreparedAudio {
+                mime_type,
+                format,
+                inline_data: Some(encode_base64(&bytes)),
+                file_uri: None,
+                remote_name: None,
+            })
+        }
+    }
+}
+
+pub(super) fn cleanup_audio(client: &Client, connection: &Connection, audio: &PreparedAudio) {
+    if connection.provider == Provider::Google {
+        if let Some(name) = &audio.remote_name {
+            let _ = client
+                .delete(format!("https://generativelanguage.googleapis.com/v1beta/{name}"))
+                .header("x-goog-api-key", &connection.key)
+                .send();
+        }
+    }
+}
+
+fn google_body(chat: &Value, audio: Option<&PreparedAudio>) -> Value {
+    let mut parts = vec![json!({"text": chat["messages"][1]["content"]})];
+    if let Some(audio) = audio {
+        if let Some(data) = &audio.inline_data {
+            parts.push(json!({"inlineData":{"mimeType":audio.mime_type,"data":data}}));
+        } else if let Some(uri) = &audio.file_uri {
+            parts.push(json!({"fileData":{"mimeType":audio.mime_type,"fileUri":uri}}));
+        }
+    }
     json!({
         "systemInstruction": {"parts": [{"text": chat["messages"][0]["content"]}]},
-        "contents": [{"role": "user", "parts": [{"text": chat["messages"][1]["content"]}]}],
+        "contents": [{"role": "user", "parts": parts}],
         "generationConfig": {
             "responseMimeType": "application/json",
             "maxOutputTokens": chat["max_tokens"],
@@ -152,18 +362,34 @@ pub(super) fn generation_request(
     client: &Client,
     connection: &Connection,
     chat: &Value,
+    audio: Option<&PreparedAudio>,
 ) -> RequestBuilder {
-    match connection.provider {
+    let request = match connection.provider {
         Provider::Google => client
             .post(format!(
                 "https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent"
             ))
             .header("x-goog-api-key", &connection.key)
-            .json(&google_body(chat)),
-        Provider::Xpiki => client
-            .post("https://api.xpiki.com/v1/chat/completions")
-            .bearer_auth(&connection.key)
-            .json(chat),
+            .json(&google_body(chat, audio)),
+        Provider::Xpiki => {
+            let mut chat = chat.clone();
+            if let Some(audio) = audio {
+                let text = chat["messages"][1]["content"].as_str().unwrap_or_default().to_string();
+                chat["messages"][1]["content"] = json!([
+                    {"type":"text","text":text},
+                    {"type":"input_audio","input_audio":{"data":audio.inline_data,"format":audio.format}}
+                ]);
+            }
+            client
+                .post("https://api.xpiki.com/v1/chat/completions")
+                .bearer_auth(&connection.key)
+                .json(&chat)
+        }
+    };
+    if audio.is_some() {
+        request.timeout(Duration::from_secs(600))
+    } else {
+        request
     }
 }
 
@@ -254,7 +480,7 @@ mod tests {
             let connection = Connection::new(key.into()).unwrap();
             for builder in [
                 validation_request(&client, &connection),
-                generation_request(&client, &connection, &chat),
+                generation_request(&client, &connection, &chat, None),
             ] {
                 let request = builder.build().unwrap();
                 assert!(!request.url().as_str().contains(key));
