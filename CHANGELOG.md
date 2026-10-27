@@ -10,6 +10,7 @@ Mọi thay đổi đáng chú ý của Wavely được ghi tại đây. Định 
 
 ### Added
 
+- Hỗ trợ key Google Gemini trực tiếp và XPiki trong một ô Gemini API key, tự nhận diện khi lưu và chọn luồng API tương ứng; giữ nguyên form nhập văn bản.
 - Tạo tiêu đề, mô tả, hashtag và từ khóa bằng Gemini 3.8 Flash qua XPiki sau khi xuất video; mặc định English, hỗ trợ tiếng Việt và YouTube/TikTok/Facebook/Instagram.
 - Lưu API key XPiki bằng Keychain/Credential Manager, kiểm tra quyền truy cập model trước khi lưu, thay/xóa key mà không lưu vào localStorage hay file cấu hình.
 - Tab xem nội dung theo nền tảng, sao chép từng phần/tất cả và mở file/thư mục đầu ra.
@@ -17,6 +18,7 @@ Mọi thay đổi đáng chú ý của Wavely được ghi tại đây. Định 
 
 ### Changed
 
+- Đổi nhãn key/thông báo chung sang Gemini; chú thích hiển thị nơi nhận transcript theo kết nối đang lưu. Key XPiki cũ được đọc tương thích, key mới chỉ thay sau khi kiểm tra model thành công.
 - Tối ưu prompt XPiki riêng cho YouTube/TikTok/Facebook/Instagram; ưu tiên nội dung đúng nguồn, cách mở đầu phù hợp và tránh nhồi từ khóa hoặc tương tác câu kéo.
 - Cho phép 0–5 hashtag và 0–10 từ khóa tùy nội dung, chuẩn hóa/loại trùng; tính giới hạn mô tả kèm hashtag và hiển thị rõ khi không có đề xuất.
 - Bố cục hai tab xem trước, preset gọn và phần chỉnh vị trí/kích thước sóng có thể thu gọn theo demo đã duyệt.

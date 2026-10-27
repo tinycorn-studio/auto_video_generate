@@ -5,10 +5,12 @@ import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 export type PublishingRequest = { language: "en" | "vi"; platforms: string[]; transcript: string };
 type Post = { platform: string; title: string; description: string; hashtags: string[]; keywords: string[] };
 type PublishingResult = { posts: Post[]; textPath: string; text: string; warning: string | null };
+type KeyStatus = { saved: boolean; provider: "google" | "xpiki" | null };
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const platformNames: Record<string, string> = { youtube: "YouTube", tiktok: "TikTok", facebook: "Facebook", instagram: "Instagram" };
 const preferenceKey = "wavely-publishing-preferences";
 let hasKey = false;
+let keyProvider: KeyStatus["provider"] = null;
 let busy = false;
 let savingKey = false;
 let current: PublishingResult | null = null;
@@ -24,23 +26,25 @@ function platforms(): string[] {
 function updateControls(): void {
   $<HTMLInputElement>("publishingEnabled").disabled = busy || savingKey;
   $<HTMLFieldSetElement>("publishingOptions").disabled = busy || !publishingEnabled();
-  $<HTMLInputElement>("xpikiKey").disabled = busy || savingKey;
-  for (const id of ["saveXpikiKey", "deleteXpikiKey", "toggleXpikiKey"]) $<HTMLButtonElement>(id).disabled = busy || savingKey;
+  $<HTMLInputElement>("geminiKey").disabled = busy || savingKey;
+  for (const id of ["saveGeminiKey", "deleteGeminiKey", "toggleGeminiKey"]) $<HTMLButtonElement>(id).disabled = busy || savingKey;
   $<HTMLButtonElement>("retryPublishing").disabled = busy || savingKey;
 }
 
 export function setPublishingBusy(value: boolean): void { busy = value; updateControls(); }
 
 function keyStatus(message: string, error = false): void {
-  $("xpikiKeyStatus").textContent = message;
-  $("xpikiKeyStatus").classList.toggle("is-error", error);
+  $("geminiKeyStatus").textContent = message;
+  $("geminiKeyStatus").classList.toggle("is-error", error);
 }
 
 function updateKeyState(): void {
-  $("xpikiBadge").textContent = hasKey ? "✦ Gemini · XPiki · đã lưu key" : "✦ Gemini · XPiki · chưa lưu key";
-  $("xpikiBadge").classList.toggle("has-key", hasKey);
-  $("deleteXpikiKey").hidden = !hasKey;
-  $<HTMLInputElement>("xpikiKey").placeholder = hasKey ? "•••••••••••••••• · Nhập key XPiki mới để thay" : "Nhập API key XPiki";
+  $("geminiBadge").textContent = hasKey ? "✦ Gemini · đã kết nối" : "✦ Gemini · chưa lưu key";
+  $("geminiBadge").classList.toggle("has-key", hasKey);
+  $("deleteGeminiKey").hidden = !hasKey;
+  $<HTMLInputElement>("geminiKey").placeholder = hasKey ? "•••••••••••••••• · Nhập key Gemini mới để thay" : "Nhập Gemini API key";
+  const destination = keyProvider === "google" ? "Google Gemini" : keyProvider === "xpiki" ? "XPiki" : "dịch vụ theo key bạn lưu";
+  $("geminiDisclosure").textContent = `Transcript/tóm tắt bạn nhập sẽ được gửi tới ${destination} khi bật tạo nội dung. Wavely không gửi âm thanh hoặc video. Cần Internet và có thể phát sinh phí theo quota API.`;
 }
 
 function savePreferences(): void {
@@ -52,8 +56,8 @@ function savePreferences(): void {
 export function capturePublishingRequest(): PublishingRequest | null {
   if (!publishingEnabled()) return null;
   if (savingKey) throw new Error("Đang lưu API key. Hãy chờ hoàn tất.");
-  if ($<HTMLInputElement>("xpikiKey").value.trim()) throw new Error("Hãy bấm Lưu để kiểm tra và lưu API key vừa nhập.");
-  if (!hasKey) throw new Error("Hãy nhập và lưu API key XPiki trước khi tạo nội dung.");
+  if ($<HTMLInputElement>("geminiKey").value.trim()) throw new Error("Hãy bấm Lưu để kiểm tra và lưu API key vừa nhập.");
+  if (!hasKey) throw new Error("Hãy nhập và lưu Gemini API key trước khi tạo nội dung.");
   const selected = platforms();
   if (!selected.length) throw new Error("Hãy chọn ít nhất một nền tảng để tạo nội dung.");
   const transcript = $<HTMLTextAreaElement>("publishingTranscript").value.trim();
@@ -80,7 +84,7 @@ export function resetPublishingResult(): void {
   $("publishingStatus").className = "publishing-status";
   $("publishingStatus").textContent = publishingEnabled()
     ? "Nội dung sẽ được tạo sau khi xuất video xong."
-    : "Bật tạo nội dung đăng bài để dùng Gemini qua XPiki sau khi xuất video.";
+    : "Bật tạo nội dung đăng bài để dùng Gemini sau khi xuất video.";
   selectTab(false);
 }
 
@@ -105,7 +109,7 @@ export async function generatePublishing(request: PublishingRequest): Promise<vo
   $("retryPublishing").hidden = true;
   $("contentActionStatus").textContent = "";
   $("publishingStatus").className = "publishing-status is-generating";
-  $("publishingStatus").textContent = "Video đã xuất xong. Đang gửi transcript/tóm tắt tới XPiki…";
+  $("publishingStatus").textContent = "Video đã xuất xong. Gemini đang xử lý transcript/tóm tắt…";
   selectTab(true);
   try {
     current = await invoke<PublishingResult>("generate_publishing_content", { request });
@@ -159,34 +163,35 @@ export async function initPublishing(change: (keySaved?: boolean) => void, retry
     const content = key === "End" || (key !== "Home" && $("videoTab").getAttribute("aria-selected") === "true");
     selectTab(content); $(content ? "contentTab" : "videoTab").focus();
   });
-  $("toggleXpikiKey").addEventListener("click", () => {
-    const input = $<HTMLInputElement>("xpikiKey"); const reveal = input.type === "password";
+  $("toggleGeminiKey").addEventListener("click", () => {
+    const input = $<HTMLInputElement>("geminiKey"); const reveal = input.type === "password";
     input.type = reveal ? "text" : "password";
-    $("toggleXpikiKey").textContent = reveal ? "Ẩn" : "Hiện";
-    $("toggleXpikiKey").setAttribute("aria-label", reveal ? "Ẩn API key vừa nhập" : "Hiện API key vừa nhập");
-    $("toggleXpikiKey").setAttribute("aria-pressed", String(reveal));
+    $("toggleGeminiKey").textContent = reveal ? "Ẩn" : "Hiện";
+    $("toggleGeminiKey").setAttribute("aria-label", reveal ? "Ẩn API key vừa nhập" : "Hiện API key vừa nhập");
+    $("toggleGeminiKey").setAttribute("aria-pressed", String(reveal));
   });
-  $("saveXpikiKey").addEventListener("click", () => void (async () => {
-    const key = $<HTMLInputElement>("xpikiKey").value.trim();
-    if (!key) { keyStatus("Hãy nhập API key XPiki trước khi lưu.", true); return; }
-    savingKey = true; updateControls(); keyStatus("Đang kiểm tra model trên XPiki và lưu API key…");
+  $("saveGeminiKey").addEventListener("click", () => void (async () => {
+    const key = $<HTMLInputElement>("geminiKey").value.trim();
+    if (!key) { keyStatus("Hãy nhập Gemini API key trước khi lưu.", true); return; }
+    savingKey = true; updateControls(); keyStatus("Đang nhận diện và kiểm tra kết nối Gemini…");
     try {
-      await invoke("save_xpiki_key", { apiKey: key });
-      hasKey = true;
-      $<HTMLInputElement>("xpikiKey").value = "";
-      $<HTMLInputElement>("xpikiKey").type = "password";
-      $("toggleXpikiKey").textContent = "Hiện";
-      $("toggleXpikiKey").setAttribute("aria-label", "Hiện API key vừa nhập");
-      $("toggleXpikiKey").setAttribute("aria-pressed", "false");
-      keyStatus("✓ Đã kiểm tra và lưu an toàn trên máy.");
+      const status = await invoke<KeyStatus>("save_publishing_key", { apiKey: key });
+      hasKey = status.saved;
+      keyProvider = status.provider;
+      $<HTMLInputElement>("geminiKey").value = "";
+      $<HTMLInputElement>("geminiKey").type = "password";
+      $("toggleGeminiKey").textContent = "Hiện";
+      $("toggleGeminiKey").setAttribute("aria-label", "Hiện API key vừa nhập");
+      $("toggleGeminiKey").setAttribute("aria-pressed", "false");
+      keyStatus("✓ Đã kết nối Gemini và lưu an toàn trên máy.");
       onChange(true);
     } catch (error) { keyStatus(String(error), true); }
     finally { savingKey = false; updateKeyState(); updateControls(); onChange(); }
   })());
-  $("deleteXpikiKey").addEventListener("click", () => void (async () => {
+  $("deleteGeminiKey").addEventListener("click", () => void (async () => {
     savingKey = true; updateControls();
     try {
-      await invoke("delete_xpiki_key"); hasKey = false; $<HTMLInputElement>("xpikiKey").value = "";
+      await invoke("delete_publishing_key"); hasKey = false; keyProvider = null; $<HTMLInputElement>("geminiKey").value = "";
       $<HTMLInputElement>("publishingEnabled").checked = false; savePreferences();
       keyStatus("Đã xóa API key khỏi kho bảo mật.");
     }
@@ -204,7 +209,11 @@ export async function initPublishing(change: (keySaved?: boolean) => void, retry
     void invoke("open_publishing_output", { folder }).catch((error) => { $("contentActionStatus").textContent = String(error); });
   });
   await listen<string>("publishing-progress", (event) => { if (busy) $("publishingStatus").textContent = event.payload; });
-  try { hasKey = await invoke<boolean>("xpiki_key_status"); keyStatus(hasKey ? "✓ Đã lưu an toàn trên máy." : "Lưu an toàn trong Keychain / Credential Manager."); }
+  try {
+    const status = await invoke<KeyStatus>("publishing_key_status");
+    hasKey = status.saved; keyProvider = status.provider;
+    keyStatus(hasKey ? "✓ Đã lưu an toàn trên máy." : "Hỗ trợ key Google Gemini và XPiki; tự nhận diện.");
+  }
   catch (error) { keyStatus(String(error), true); }
   updateKeyState(); updateControls(); onChange();
 }

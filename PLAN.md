@@ -298,6 +298,14 @@ Khi có thay đổi, cập nhật cả bảng mốc ở trên và nhật ký sau
 - Bổ sung kiểm tra hồi quy cho metadata tùy chọn, loại trùng và giới hạn caption Unicode. `npm run build`, định dạng Rust và `git diff --check` đạt; test Rust local bị chặn vì chưa cache `keyring`/thiếu C++ Build Tools.
 - CI [run 40442693218](https://github.com/tinycorn-studio/auto_video_generate/actions/runs/40442693218) của commit `115f9c2` build thành công và đạt cả 7 kiểm tra publishing trên Windows/macOS Intel/Apple Silicon. Artifact Windows được xác minh SHA-256 rồi giải nén và mở tại `previews/windows-115f9c2/app/PFiles/Wavely/wavely.exe` để thử prompt mới; chưa gọi API thật để đánh giá chất lượng bài sinh.
 
+#### 2026-10-27 · Một form Gemini key cho Google và XPiki
+
+- Thêm nhận diện key Google (`AIza…`, `AQ.…`) và XPiki (`sk-…`), kiểm tra model tại đúng endpoint; không thử chéo key hoặc đổi dịch vụ khi API lỗi.
+- Lưu loại dịch vụ cùng key trong một credential bảo mật; đọc tương thích key XPiki cũ, chỉ thay bản ghi sau khi kiểm tra model thành công. Frontend chỉ nhận trạng thái và loại dịch vụ.
+- Thêm request/response Google Generate Content, chuẩn hóa đầu ra về bộ kiểm tra bài đăng hiện tại. Giữ nguyên form văn bản, prompt và đầu ra `.txt`.
+- Đổi nhãn chính sang Gemini API key, không thêm lựa chọn dịch vụ; chú thích văn bản hiển thị đúng nơi nhận dữ liệu.
+- Bổ sung test nhận diện, tương thích credential cũ, ràng buộc host/header, metadata model, phản hồi Google và bảo vệ key trong trạng thái frontend. `npm run build`, định dạng Rust và `git diff --check` đạt; tiếp tục build/test native qua CI do máy local thiếu C++ Build Tools.
+
 ## 8. Tài liệu tham khảo
 
 - [FFmpeg showfreqs](https://ffmpeg.org/ffmpeg-filters.html#showfreqs) — chế độ bar/line/dot và các cài đặt phổ tần.
