@@ -375,7 +375,7 @@ async function createPublishingContent(request: PublishingRequest): Promise<void
     resultMessage.textContent = "Đã lưu video và file nội dung .txt cùng thư mục.";
     resultMessage.className = "result-message is-success";
   } catch {
-    resultMessage.textContent = "Video đã được lưu. XPiki chưa tạo được nội dung; xem chi tiết và thử lại trong tab Nội dung đăng bài.";
+    resultMessage.textContent = "Video đã được lưu. Gemini chưa tạo được nội dung; xem chi tiết và thử lại trong tab Nội dung đăng bài.";
     resultMessage.className = "result-message";
   } finally { setBusy(false); }
 }

@@ -220,8 +220,8 @@ h1 { margin: 10px 0 8px; font: 700 29px/1.2 "Manrope", sans-serif; letter-spacin
 input, select, textarea { font: inherit; color: var(--ink); }
 input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .header-badges { display: flex; align-items: center; gap: 20px; }
-.xpiki-badge { padding: 7px 10px; color: var(--muted); background: var(--soft); border: 1px solid var(--border); border-radius: 8px; font-size: 11px; }
-.xpiki-badge.has-key { color: var(--accent); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 30%, var(--border)); }
+.gemini-badge { padding: 7px 10px; color: var(--muted); background: var(--soft); border: 1px solid var(--border); border-radius: 8px; font-size: 11px; }
+.gemini-badge.has-key { color: var(--accent); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 30%, var(--border)); }
 .workspace { gap: 46px; padding-top: 34px; }
 .preset-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .preset-card { min-height: 58px; gap: 6px; padding: 8px; flex-wrap: wrap; }
@@ -307,4 +307,4 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus
 .retry-button:disabled { opacity: .6; cursor: wait; }
 .content-action-status { color: var(--muted); font-size: 11px; line-height: 1.6; }
 @media (max-width: 900px) { .workspace { gap: 28px; }.header-badges { gap: 10px; }.header-status { font-size: 10px; }.publishing-options { grid-template-columns: 105px minmax(0, 1fr); gap: 10px; }.publishing-card { padding: 13px; } }
-@media (max-width: 700px) { .preview-panel { position: static; }.header-status { display: none; }.xpiki-badge { font-size: 10px; }.preset-text strong { font-size: 10px; }.publishing-heading h2 { font-size: 13px; } }
+@media (max-width: 700px) { .preview-panel { position: static; }.header-status { display: none; }.gemini-badge { font-size: 10px; }.preset-text strong { font-size: 10px; }.publishing-heading h2 { font-size: 13px; } }

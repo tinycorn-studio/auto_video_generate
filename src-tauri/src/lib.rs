@@ -721,7 +721,7 @@ pub fn run() {
         .manage(EngineInstallState::default())
         .manage(publishing::PublishingState::default())
         .invoke_handler(tauri::generate_handler![app_version, ffmpeg_status, install_ffmpeg, cancel_ffmpeg_install, start_render, cancel_render,
-            publishing::xpiki_key_status, publishing::save_xpiki_key, publishing::delete_xpiki_key,
+            publishing::publishing_key_status, publishing::save_publishing_key, publishing::delete_publishing_key,
             publishing::generate_publishing_content, publishing::open_publishing_output])
         .run(tauri::generate_context!())
         .expect("Wavely could not start");

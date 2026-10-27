@@ -19,7 +19,7 @@
         <div class="header-badges"><div class="header-status" id="engineStatus" role="status">
           <span class="status-dot"></span>
           <span>Đang kiểm tra FFmpeg…</span>
-        </div><span class="xpiki-badge" id="xpikiBadge">✦ Gemini · XPiki · chưa lưu key</span></div>
+        </div><span class="gemini-badge" id="geminiBadge">✦ Gemini · chưa lưu key</span></div>
       </header>
 
       <main class="workspace">
@@ -140,15 +140,15 @@
           </details>
 
           <section class="publishing-card" aria-labelledby="publishingTitle">
-            <div class="publishing-heading"><span class="ai-icon" aria-hidden="true">✦</span><div><h2 id="publishingTitle">Tạo nội dung đăng bài</h2><p>Kèm tiêu đề, mô tả và hashtag</p></div><label class="toggle"><input id="publishingEnabled" type="checkbox" aria-label="Bật tạo nội dung đăng bài bằng Gemini qua XPiki" /><span></span></label></div>
-            <div class="field-heading"><label for="xpikiKey">XPiki API key</label><span class="field-hint">Gemini 3.8 Flash</span></div>
-            <div class="key-row"><div class="key-input"><input id="xpikiKey" type="password" placeholder="Nhập API key XPiki" autocomplete="off" spellcheck="false" maxlength="512" /><button id="toggleXpikiKey" type="button" aria-label="Hiện API key vừa nhập" aria-pressed="false">Hiện</button></div><button id="saveXpikiKey" type="button" class="primary-small">Lưu</button></div>
-            <div class="key-status-row"><span id="xpikiKeyStatus" role="status">Lưu an toàn trong Keychain / Credential Manager.</span><button id="deleteXpikiKey" class="text-button" type="button" hidden>Xóa key</button></div>
+            <div class="publishing-heading"><span class="ai-icon" aria-hidden="true">✦</span><div><h2 id="publishingTitle">Tạo nội dung đăng bài</h2><p>Kèm tiêu đề, mô tả và hashtag</p></div><label class="toggle"><input id="publishingEnabled" type="checkbox" aria-label="Bật tạo nội dung đăng bài bằng Gemini" /><span></span></label></div>
+            <div class="field-heading"><label for="geminiKey">Gemini API key</label><span class="field-hint">Gemini 3.8 Flash</span></div>
+            <div class="key-row"><div class="key-input"><input id="geminiKey" type="password" placeholder="Nhập Gemini API key" autocomplete="off" spellcheck="false" maxlength="512" /><button id="toggleGeminiKey" type="button" aria-label="Hiện API key vừa nhập" aria-pressed="false">Hiện</button></div><button id="saveGeminiKey" type="button" class="primary-small">Lưu</button></div>
+            <div class="key-status-row"><span id="geminiKeyStatus" role="status">Lưu an toàn trong Keychain / Credential Manager.</span><button id="deleteGeminiKey" class="text-button" type="button" hidden>Xóa key</button></div>
             <fieldset id="publishingOptions" disabled>
               <div class="publishing-options"><div><label for="publishingLanguage">Ngôn ngữ</label><select id="publishingLanguage"><option value="en" selected>English</option><option value="vi">Tiếng Việt</option></select></div><div><span class="option-label" id="platformsLabel">Nền tảng</span><div class="platform-options" role="group" aria-labelledby="platformsLabel"><label><input type="checkbox" value="youtube" checked /><span>YouTube</span></label><label><input type="checkbox" value="tiktok" checked /><span>TikTok</span></label><label><input type="checkbox" value="facebook" /><span>Facebook</span></label><label><input type="checkbox" value="instagram" /><span>Instagram</span></label></div></div></div>
-              <label for="publishingTranscript">Bản chép lời / tóm tắt nội dung <span class="field-hint">(bắt buộc)</span></label><textarea id="publishingTranscript" rows="3" maxlength="40000" placeholder="Dán transcript hoặc tóm tắt chính xác nội dung âm thanh…" aria-describedby="xpikiDisclosure" required></textarea>
+              <label for="publishingTranscript">Bản chép lời / tóm tắt nội dung <span class="field-hint">(bắt buộc)</span></label><textarea id="publishingTranscript" rows="3" maxlength="40000" placeholder="Dán transcript hoặc tóm tắt chính xác nội dung âm thanh…" aria-describedby="geminiDisclosure" required></textarea>
             </fieldset>
-            <p class="ai-disclosure" id="xpikiDisclosure">Xpiki Gemini hiện chỉ nhận văn bản. Transcript/tóm tắt bạn nhập sẽ được gửi tới XPiki; Wavely không gửi âm thanh hoặc video. Cần Internet và có thể phát sinh phí theo quota API.</p>
+            <p class="ai-disclosure" id="geminiDisclosure">Hỗ trợ key Google Gemini và XPiki; tự nhận diện. Khi bật, transcript/tóm tắt được gửi tới dịch vụ theo key đã lưu; Wavely không gửi âm thanh hoặc video.</p>
           </section>
 
           <div class="output-summary">
@@ -208,10 +208,10 @@
           </div>
           <div class="preview-description"><span class="preview-live-dot"></span><span>Ảnh và âm thanh được xử lý trên máy tính</span></div>
           <div class="preview-footnote">Bản xem trước thể hiện bố cục và kiểu sóng. Chuyển động trong video xuất sẽ bám theo âm thanh thực.</div>
-          <div class="publishing-tip"><span class="ai-icon" aria-hidden="true">≡</span><div><strong>Sẵn sàng cho lần đăng tiếp theo</strong><p>Dán transcript hoặc tóm tắt chính xác. XPiki tạo nội dung riêng cho từng nền tảng và một file .txt; không cần tải âm thanh/video lên.</p></div></div>
+          <div class="publishing-tip"><span class="ai-icon" aria-hidden="true">≡</span><div><strong>Sẵn sàng cho lần đăng tiếp theo</strong><p>Dán transcript hoặc tóm tắt chính xác. Gemini tạo nội dung riêng cho từng nền tảng và một file .txt; không cần tải âm thanh/video lên.</p></div></div>
           </div>
           <section id="contentPreviewPanel" role="tabpanel" aria-labelledby="contentTab" hidden>
-            <div id="publishingStatus" class="publishing-status" role="status">Nội dung sẽ xuất hiện sau khi bạn tạo video với Gemini qua XPiki được bật.</div>
+            <div id="publishingStatus" class="publishing-status" role="status">Nội dung sẽ xuất hiện sau khi bạn tạo video với Gemini được bật.</div>
             <div id="postResults" hidden><div id="postPlatforms" class="post-platforms" role="group" aria-label="Nội dung theo nền tảng"></div><p class="ai-result-note">NỘI DUNG DO AI GỢI Ý · KIỂM TRA TRƯỚC KHI ĐĂNG</p>
               <div class="post-block"><div><h3>TIÊU ĐỀ</h3><button type="button" class="text-button" data-copy="title">Sao chép</button></div><p id="postTitle"></p></div>
               <div class="post-block"><div><h3>MÔ TẢ</h3><button type="button" class="text-button" data-copy="description">Sao chép</button></div><p id="postDescription"></p></div>
@@ -224,7 +224,7 @@
         </aside>
       </main>
 
-      <footer class="app-footer"><span>Video được xử lý trên máy · XPiki chỉ nhận transcript/tóm tắt khi bật tạo nội dung</span><span>v<span id="appVersion">0.4.0</span></span></footer>
+      <footer class="app-footer"><span>Video được xử lý trên máy · Gemini nhận transcript/tóm tắt khi bật tạo nội dung</span><span>v<span id="appVersion">0.4.0</span></span></footer>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

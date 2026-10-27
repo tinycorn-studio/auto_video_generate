@@ -11,8 +11,9 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager, State};
 
-const API: &str = "https://api.xpiki.com/v1";
-const MODELS_URL: &str = "https://api.xpiki.com/v1/models?type=all";
+mod provider;
+use provider::{Connection, Provider};
+
 const MODEL: &str = "gemini-3.8-flash";
 const PLATFORMS: [&str; 4] = ["youtube", "tiktok", "facebook", "instagram"];
 
@@ -69,17 +70,33 @@ pub struct PublishingResult {
     warning: Option<String>,
 }
 
+#[derive(Serialize)]
+pub struct KeyStatus {
+    saved: bool,
+    provider: Option<Provider>,
+}
+
+impl KeyStatus {
+    fn from_connection(connection: Option<&Connection>) -> Self {
+        Self {
+            saved: connection.is_some(),
+            provider: connection.map(|c| c.provider),
+        }
+    }
+}
+
 fn credential() -> Result<keyring::Entry, String> {
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     return Err("Lưu API key an toàn hiện chỉ hỗ trợ macOS và Windows.".into());
     #[cfg(any(target_os = "macos", target_os = "windows"))]
+    // Retain the historical entry name to read existing verified XPiki keys.
     keyring::Entry::new("com.tinycorn.wavely", "xpiki-api-key")
         .map_err(|_| "Không truy cập được kho API key của hệ điều hành.".into())
 }
 
-fn read_key() -> Result<Option<String>, String> {
+fn read_connection() -> Result<Option<Connection>, String> {
     match credential()?.get_password() {
-        Ok(key) => Ok(Some(key)),
+        Ok(stored) => Connection::decode(&stored).map(Some),
         Err(keyring::Error::NoEntry) => Ok(None),
         Err(_) => Err(
             "Không đọc được API key. Hãy cho phép Wavely truy cập Keychain/Credential Manager."
@@ -94,14 +111,14 @@ fn client() -> Result<Client, String> {
         .timeout(Duration::from_secs(180))
         .redirect(reqwest::redirect::Policy::none())
         .build()
-        .map_err(|_| "Không khởi tạo được kết nối Xpiki.".into())
+        .map_err(|_| "Không khởi tạo được kết nối Gemini.".into())
 }
 
 fn network_error(error: reqwest::Error) -> String {
     if error.is_timeout() {
-        "Xpiki phản hồi quá lâu. Hãy thử lại; video vẫn được giữ nguyên.".into()
+        "Gemini phản hồi quá lâu. Hãy thử lại; video vẫn được giữ nguyên.".into()
     } else {
-        "Không kết nối được Xpiki. Kiểm tra Internet rồi thử lại.".into()
+        "Không kết nối được Gemini. Kiểm tra Internet rồi thử lại.".into()
     }
 }
 
@@ -111,12 +128,12 @@ fn checked(response: Response) -> Result<Response, String> {
     }
     // Do not expose service response bodies, headers, or keys to the UI/logs.
     Err(match response.status().as_u16() {
-        400 => "Xpiki từ chối yêu cầu. Kiểm tra model và nội dung gửi lên.",
-        401 | 403 => "API key Xpiki không hợp lệ hoặc không có quyền truy cập model.",
-        404 => "Xpiki không tìm thấy model hoặc endpoint được yêu cầu.",
-        429 => "Xpiki đã hết hạn mức hoặc đang giới hạn lượt gọi. Kiểm tra quota rồi thử lại.",
-        500..=599 => "Xpiki đang gặp lỗi máy chủ. Hãy thử lại sau.",
-        _ => "Xpiki không xử lý được yêu cầu. Hãy thử lại sau.",
+        400 => "Gemini từ chối yêu cầu. Kiểm tra model và nội dung gửi lên.",
+        401 | 403 => "API key Gemini không hợp lệ hoặc không có quyền truy cập model.",
+        404 => "Gemini không tìm thấy model hoặc endpoint được yêu cầu.",
+        429 => "Gemini đã hết hạn mức hoặc đang giới hạn lượt gọi. Kiểm tra quota rồi thử lại.",
+        500..=599 => "Gemini đang gặp lỗi máy chủ. Hãy thử lại sau.",
+        _ => "Gemini không xử lý được yêu cầu. Hãy thử lại sau.",
     }
     .into())
 }
@@ -130,8 +147,8 @@ async fn blocking<T: Send + 'static>(
 }
 
 #[tauri::command]
-pub async fn xpiki_key_status() -> Result<bool, String> {
-    blocking(|| Ok(read_key()?.is_some())).await
+pub async fn publishing_key_status() -> Result<KeyStatus, String> {
+    blocking(|| Ok(KeyStatus::from_connection(read_connection()?.as_ref()))).await
 }
 
 fn supports_publishing(model: &Value) -> bool {
@@ -149,41 +166,22 @@ fn supports_publishing(model: &Value) -> bool {
 }
 
 #[tauri::command]
-pub async fn save_xpiki_key(api_key: String) -> Result<(), String> {
+pub async fn save_publishing_key(api_key: String) -> Result<KeyStatus, String> {
     blocking(move || {
-        let key = api_key.trim();
-        if key.is_empty() || key.len() > 512 || !key.bytes().all(|byte| byte.is_ascii_graphic()) {
-            return Err("API key Xpiki không đúng định dạng.".into());
-        }
-        let models: Value = checked(
-            client()?
-                .get(MODELS_URL)
-                .bearer_auth(key)
-                .timeout(Duration::from_secs(30))
-                .send()
-                .map_err(network_error)?,
-        )?
-        .json()
-        .map_err(|_| "Xpiki trả về danh sách model không hợp lệ.")?;
-        let model = models["data"]
-            .as_array()
-            .and_then(|list| {
-                list.iter()
-                    .find(|model| model["id"].as_str() == Some(MODEL))
-            })
-            .ok_or("Key Xpiki không có quyền truy cập gemini-3.8-flash.")?;
-        if !supports_publishing(model) {
-            return Err("Model Xpiki không hỗ trợ chat văn bản với đầu ra JSON.".into());
-        }
+        let connection = Connection::new(api_key.trim().into())?;
+        provider::verify(&client()?, &connection)?;
+        // Replace the stored key only after successful verification. The provider
+        // and key are serialized together so they cannot drift apart.
         credential()?
-            .set_password(key)
-            .map_err(|_| "Không lưu được API key vào kho bảo mật hệ điều hành.".into())
+            .set_password(&connection.encode()?)
+            .map_err(|_| "Không lưu được API key vào kho bảo mật hệ điều hành.".to_string())?;
+        Ok(KeyStatus::from_connection(Some(&connection)))
     })
     .await
 }
 
 #[tauri::command]
-pub async fn delete_xpiki_key() -> Result<(), String> {
+pub async fn delete_publishing_key() -> Result<(), String> {
     blocking(|| match credential()?.delete_credential() {
         Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
         Err(_) => Err("Không xóa được API key khỏi kho bảo mật hệ điều hành.".into()),
@@ -257,9 +255,9 @@ fn parse_content(value: Value, request: &PublishingRequest) -> Result<Vec<Post>,
     let candidate = value["choices"]
         .as_array()
         .and_then(|a| a.first())
-        .ok_or("Xpiki không trả về nội dung. Hãy thử lại sau.")?;
+        .ok_or("Gemini không trả về nội dung. Hãy thử lại sau.")?;
     if candidate["finish_reason"].as_str() != Some("stop") {
-        return Err("Xpiki chưa tạo được nội dung hoàn chỉnh. Hãy thử lại.".into());
+        return Err("Gemini chưa tạo được nội dung hoàn chỉnh. Hãy thử lại.".into());
     }
     let content = &candidate["message"]["content"];
     let text = if let Some(text) = content.as_str() {
@@ -270,12 +268,12 @@ fn parse_content(value: Value, request: &PublishingRequest) -> Result<Vec<Post>,
             .filter_map(|part| part["text"].as_str())
             .collect::<String>()
     } else {
-        return Err("Xpiki trả về nội dung không hợp lệ.".into());
+        return Err("Gemini trả về nội dung không hợp lệ.".into());
     };
     let mut content: Content = serde_json::from_str(&text)
-        .map_err(|_| "Nội dung Xpiki trả về không đúng định dạng JSON. Hãy thử lại.")?;
+        .map_err(|_| "Nội dung Gemini trả về không đúng định dạng JSON. Hãy thử lại.")?;
     if content.posts.len() != request.platforms.len() {
-        return Err("Xpiki chưa tạo đủ các nền tảng đã chọn.".into());
+        return Err("Gemini chưa tạo đủ các nền tảng đã chọn.".into());
     }
     let mut ordered = Vec::new();
     for platform in &request.platforms {
@@ -283,7 +281,7 @@ fn parse_content(value: Value, request: &PublishingRequest) -> Result<Vec<Post>,
             .posts
             .iter()
             .position(|p| &p.platform == platform)
-            .ok_or("Xpiki trả về nền tảng không đúng yêu cầu.")?;
+            .ok_or("Gemini trả về nền tảng không đúng yêu cầu.")?;
         let mut post = content.posts.remove(index);
         post.title = post.title.trim().to_string();
         post.description = post.description.trim().to_string();
@@ -299,7 +297,7 @@ fn parse_content(value: Value, request: &PublishingRequest) -> Result<Vec<Post>,
             || post.description.chars().count() > description_limit
         {
             return Err(
-                "Nội dung Xpiki thiếu trường hoặc vượt giới hạn nền tảng. Hãy thử lại.".into(),
+                "Nội dung Gemini thiếu trường hoặc vượt giới hạn nền tảng. Hãy thử lại.".into(),
             );
         }
         let mut seen_tags = HashSet::new();
@@ -312,7 +310,7 @@ fn parse_content(value: Value, request: &PublishingRequest) -> Result<Vec<Post>,
                     .collect::<String>()
             );
             if tag == "#" || tag.chars().count() > 100 {
-                return Err("Hashtag Xpiki trả về không hợp lệ.".into());
+                return Err("Hashtag Gemini trả về không hợp lệ.".into());
             }
         }
         post.hashtags
@@ -321,13 +319,13 @@ fn parse_content(value: Value, request: &PublishingRequest) -> Result<Vec<Post>,
         for keyword in &mut post.keywords {
             *keyword = keyword.split_whitespace().collect::<Vec<_>>().join(" ");
             if keyword.is_empty() || keyword.chars().count() > 200 {
-                return Err("Từ khóa Xpiki trả về không hợp lệ.".into());
+                return Err("Từ khóa Gemini trả về không hợp lệ.".into());
             }
         }
         post.keywords
             .retain(|keyword| seen_keywords.insert(keyword.to_lowercase()));
         if post.hashtags.len() > 5 || post.keywords.len() > 10 {
-            return Err("Nội dung Xpiki có quá nhiều hashtag hoặc từ khóa. Hãy thử lại.".into());
+            return Err("Nội dung Gemini có quá nhiều hashtag hoặc từ khóa. Hãy thử lại.".into());
         }
         let caption_length = post.description.chars().count()
             + if post.hashtags.is_empty() {
@@ -411,24 +409,24 @@ fn generate(
     request: PublishingRequest,
 ) -> Result<PublishingResult, String> {
     request.validate()?;
-    let key = read_key()?.ok_or("Hãy lưu API key Xpiki trước khi tạo nội dung.")?;
+    let connection = read_connection()?.ok_or("Hãy lưu API key Gemini trước khi tạo nội dung.")?;
     if !export.video.is_file() {
         return Err("Không còn tìm thấy video vừa xuất.".into());
     }
-    progress(&app, "Đang chuẩn bị văn bản cho Xpiki Gemini…");
+    progress(&app, "Đang chuẩn bị văn bản cho Gemini…");
     let client = client()?;
-    progress(&app, "Xpiki Gemini đang viết nội dung đăng bài…");
+    progress(&app, "Gemini đang viết nội dung đăng bài…");
     let value: Value = checked(
-        client
-            .post(format!("{API}/chat/completions"))
-            .bearer_auth(&key)
-            .json(&request_body(&request))
+        provider::generation_request(&client, &connection, &request_body(&request))
             .send()
             .map_err(network_error)?,
     )?
     .json()
-    .map_err(|_| "Không đọc được phản hồi Xpiki.")?;
-    let posts = parse_content(value, &request)?;
+    .map_err(|_| "Không đọc được phản hồi Gemini.")?;
+    let posts = parse_content(
+        provider::normalize_response(connection.provider, value)?,
+        &request,
+    )?;
     let text = format_text(&posts, &request.language);
     let text_path = save_sidecar(&export.video, &text)?;
     if let Ok(mut current) = app.state::<PublishingState>().export.lock() {
@@ -541,6 +539,30 @@ mod tests {
 
     fn response(posts: Vec<Value>) -> Value {
         json!({"choices":[{"finish_reason":"stop","message":{"content":json!({"posts":posts}).to_string()}}]})
+    }
+
+    #[test]
+    fn key_status_returns_provider_without_credential_material() {
+        let connection = Connection::new("AIza-private-fixture".into()).unwrap();
+        let status = serde_json::to_value(KeyStatus::from_connection(Some(&connection))).unwrap();
+        assert_eq!(status, json!({"saved":true,"provider":"google"}));
+        assert_eq!(
+            serde_json::to_value(KeyStatus::from_connection(None)).unwrap(),
+            json!({"saved":false,"provider":null})
+        );
+    }
+
+    #[test]
+    fn google_response_passes_the_shared_post_validation_and_export_format() {
+        let text = json!({"posts":[valid_post("tiktok"),valid_post("youtube")]}).to_string();
+        let google = json!({"candidates":[{"finishReason":"STOP","content":{"parts":[{"thought":true,"text":"not publishing copy"},{"text":text}]}}]});
+        let normalized = provider::normalize_response(Provider::Google, google).unwrap();
+        let posts = parse_content(normalized, &request()).unwrap();
+        assert_eq!(posts[0].platform, "youtube");
+        assert_eq!(posts[1].platform, "tiktok");
+        let exported = format_text(&posts, "en");
+        assert!(exported.contains("A moment to unwind"));
+        assert!(!exported.contains("not publishing copy"));
     }
 
     #[test]
