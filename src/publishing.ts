@@ -88,8 +88,10 @@ function selectPost(post: Post): void {
   selectedPost = post;
   $("postTitle").textContent = post.title;
   $("postDescription").textContent = post.description;
-  $("postHashtags").textContent = post.hashtags.join(" ");
-  $("postKeywords").textContent = post.keywords.join(", ");
+  $("postHashtags").textContent = post.hashtags.length ? post.hashtags.join(" ") : "Không đề xuất hashtag.";
+  $("postKeywords").textContent = post.keywords.length ? post.keywords.join(", ") : "Không đề xuất từ khóa.";
+  document.querySelector<HTMLButtonElement>('[data-copy="hashtags"]')!.disabled = !post.hashtags.length;
+  document.querySelector<HTMLButtonElement>('[data-copy="keywords"]')!.disabled = !post.keywords.length;
   $("postPlatforms").querySelectorAll<HTMLButtonElement>("button").forEach((b) => {
     b.classList.toggle("is-selected", b.dataset.platform === post.platform);
     b.setAttribute("aria-pressed", String(b.dataset.platform === post.platform));

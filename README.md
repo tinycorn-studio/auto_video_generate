@@ -67,6 +67,8 @@ FFmpeg là tiến trình native riêng, không phải thư viện nhúng vào Ru
 
 ### Thiết lập Gemini
 
+Prompt được lưu tại `src-tauri/src/publishing_prompt.txt`, có hướng viết riêng cho từng nền tảng và chỉ dựa trên transcript/tóm tắt. App không tra cứu xu hướng hay lượng tìm kiếm. Hashtag (0–5) và từ khóa (0–10) là đề xuất tùy nội dung, có thể để trống; app chuẩn hóa và loại trùng trước khi hiển thị. Giới hạn mô tả của app tính cả hashtag khi ghép vào caption. Tiêu đề ngoài YouTube là nhãn biên tập trong Wavely, không phải trường tiêu đề riêng khi đăng TikTok/Instagram.
+
 1. Nhập API key XPiki tại **Tạo nội dung đăng bài**, bấm **Lưu**. App kiểm tra quyền truy cập model trước khi lưu vào kho bảo mật hệ điều hành.
 2. Bật công tắc tạo nội dung. Chọn ngôn ngữ (mặc định **English**) và nền tảng.
 3. Dán transcript hoặc tóm tắt chính xác nội dung âm thanh. Văn bản này được gửi tới XPiki; không gửi file âm thanh hay video.
