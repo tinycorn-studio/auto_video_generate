@@ -32,9 +32,9 @@
 
 | Preset | Hình ảnh sóng | Dùng khi | Ưu tiên hiệu năng |
 |---|---|---|---|
-| **Tối giản** | Đường sóng mảnh | Giọng nói, podcast, bản thu nhẹ | Rất cao; đề xuất làm mặc định ban đầu |
-| **Cân xứng** | Các vạch biên độ vươn đối xứng trên/dưới trục giữa | Podcast, lo-fi, video cần dải sóng cân đối | Rất cao; dùng `showwaves` native |
-| **Spectrum** | Cột phổ đối xứng | Nhạc, beat, EDM | Cao; chỉ vẽ một dải cột gọn |
+| **Tối giản** *(cũ -> thay bằng **Cột Studio**)* | Cột đối xứng tách khe dày 32 cột (`vflip + vstack + drawgrid`) | Giọng nói, podcast, bản thu nhẹ | Rất cao; làm mặc định mới |
+| **Cân xứng** *(cũ -> thay bằng **EQ Thanh Gọn**)* | 28 cột tần số rời `averaging=4` mượt (`showfreqs + drawgrid`) | Nhạc, beat, thuyết minh | Rất cao; FFT nhỏ `win_size=512` |
+| **Spectrum** *(cũ -> thay bằng **Khối Gạch**)* | 24 cột chia khối gạch xếp tầng 4–8 hàng (`showfreqs + drawgrid`) | Video phong cách hiện đại, tối giản | Rất cao; render ma trận nhỏ `24×8` |
 | **Halo** | Vòng âm thanh | Acoustic, lo-fi | Thử nghiệm; đưa vào sau khi đo hiệu năng |
 
 Tên preset là gợi ý giao diện, không phải nhận diện thể loại bằng AI. Trong v1, người dùng tự chọn preset; màu sắc đi theo preset và có thể có một lựa chọn đổi màu đơn giản. Chốt preset mặc định sau khi xác nhận mẫu trong mockup.
@@ -52,9 +52,9 @@ Tên preset là gợi ý giao diện, không phải nhận diện thể loại b
 
 - Dùng FFmpeg làm bộ máy media chung trên Windows/macOS. V1 đọc duration từ thông tin đầu vào FFmpeg để không cần thêm binary FFprobe.
 - Dùng filtergraph của FFmpeg để giữ ảnh nền, tạo dải sóng trong suốt, ghép âm thanh và mã hóa MP4.
-- **Tối giản:** dùng showwaves cho sóng thể hiện biên độ theo thời gian.
-- **Cân xứng:** dùng showwaves `mode=cline` để vẽ từng mẫu đối xứng quanh tâm vùng wave; giữ cùng filter native, FPS và kích thước vùng để không thêm bước phân tích AI hay tiến trình phụ.
-- **Spectrum:** dùng showfreqs ở chế độ bar để hiển thị các dải tần. Giới hạn kích thước vùng sóng và số cột; không dựng phân tích phổ cho toàn khung hình nếu chỉ cần một overlay nhỏ.
+- **Cột Studio (`studio`):** `aresample=10000` + `showfreqs` 32 cột nửa chiều cao phản chiếu qua `vflip + vstack`, `scale=flags=neighbor` và `drawgrid` chừa khe thoáng.
+- **EQ Thanh Gọn (`eq`):** `aresample=10000` + `showfreqs` 28 cột với `win_size=512:averaging=4`, phóng bằng `flags=neighbor` và tách cột bằng `drawgrid`.
+- **Khối Gạch (`blocks`):** `aresample=10000` + `showfreqs` ở độ phân giải ma trận `24×4..8`, phóng `flags=neighbor` và cắt lưới X+Y bằng `drawgrid` thành các viên gạch đều cạnh, không răng cưa và nhanh hơn cả bộ preset cũ.
 - **Halo:** FFmpeg không cung cấp cùng kiểu vòng tròn radial trực tiếp như hai kiểu trên. Chỉ thêm khi có thể dựng overlay nhỏ, đo được và không làm chậm đáng kể; nếu không, để ở phiên bản sau.
 - Dùng -progress pipe:1 hoặc cơ chế tương đương để hiển thị tiến độ. Gọi tiến trình bằng danh sách tham số, không nối lệnh từ chuỗi đầu vào của người dùng.
 - Render vào file tạm, chỉ đổi tên thành file đích sau khi FFmpeg hoàn tất thành công. Không ghi đè file có sẵn nếu người dùng chưa chọn.
@@ -116,7 +116,7 @@ Các mốc được cập nhật tại đây cùng với thay đổi mã nguồn
 | **M7 · Khổ và bố cục xuất** | Đã phát hành trong v0.3.0; người dùng xác nhận render thành công; chưa kiểm tra toàn bộ tổ hợp khổ/vị trí/preset | Chọn khổ dọc/ngang; preview và FFmpeg đồng bộ bố cục |
 | **M8 · Sóng cân xứng và điều chỉnh bố cục** | **Hoàn thành · v0.4.0 đã merge; người dùng xác nhận xuất video thành công trên Windows; CI xanh cả ba mục tiêu** | Kiểu sóng cân xứng `cline`, lưới 3 × 3 vị trí và scale 25–100% |
 | **M9 · Nội dung đăng bài từ audio** | **Hoàn thành về tính năng · PR #3 chờ merge; CI xanh trên ba mục tiêu, app đã được người dùng chạy thử trên macOS** | Google Gemini/XPiki, chế độ Audio mặc định hoặc Transcript, nội dung tiếng Anh mặc định và file `.txt` |
-| **M10 · Nền video, delay và tối ưu render** | **Hoàn thành về tính năng trên nhánh `feat/video-background-sync`; đã test local trên Windows 11 + Radeon RX550** | Hỗ trợ video nền (`MP4`/`MOV`/`MKV`/`WebM`/`M4V`/`AVI`), delay đầu/cuối 0–300s, fit âm thanh/video (`loop`/`freeze`/`stretch`), mix tiếng video gốc, tối ưu filter graph & GPU H.264 + fallback `libx264` |
+| **M10 · Nền video, delay và tối ưu render** | **Hoàn thành về tính năng trên nhánh `feat/video-background-sync`; đã test local trên Windows 11 + Radeon RX550** | Hỗ trợ video nền (`MP4`/`MOV`/`MKV`/`WebM`/`M4V`/`AVI`), delay đầu/cuối 0–300s, fit âm thanh/video (`loop`/`freeze`/`stretch`), mix tiếng video gốc, tối ưu filter graph & GPU H.264 + fallback `libx264`, cùng 3 sóng tối giản mới (**Cột Studio**, **EQ Thanh Gọn**, **Khối Gạch**) |
 
 ## 5. Tiêu chí nghiệm thu
 
@@ -324,6 +324,7 @@ Khi có thay đổi, cập nhật cả bảng mốc ở trên và nhật ký sau
 - Hỗ trợ chọn nền `Ảnh nền` hoặc `Video nền`, `Delay đầu video` / `Delay cuối video` (`0–300s`), hai chế độ thời lượng (`Fit theo âm thanh` với `Lặp lại` / `Giữ khung cuối` / `Kéo chậm` và `Fit theo độ dài video`), cùng tùy chọn giữ tiếng gốc video nền (`amix`).
 - Tối ưu FFmpeg filter graph cho mọi video đầu vào: hạ `fps=30:round=near` ngay trước `scale`/`crop`/`overlay`, bỏ qua `scale`/`crop` khi đúng chuẩn `1080×1920` hoặc `1920×1080` (`SAR 1:1`, không xoay), dùng `flags=bilinear` + `format=yuv420p` sớm, `-stream_loop -1`, `-vn` cho luồng audio, `eval=init` cho `overlay`, và hạ ưu tiên tiến trình nền trên Windows (`BELOW_NORMAL_PRIORITY_CLASS | CREATE_NO_WINDOW`).
 - Cập nhật UI (`index.html`, `src/style.css`, `src/main.ts`) với thanh xem trước video `<video>`, tóm tắt timeline thời gian thực, chọn mức `Nhẹ máy (Tự động)` / `CPU nhanh` / `CPU file gọn` lưu trong `localStorage`, đồng thời chỉnh `.video-caption` lên `bottom: 15%` để tránh đè sóng âm.
+- Nâng cấp 3 kiểu sóng âm mặc định trong app và khung preview sang **Cột Studio** (`studio`), **EQ Thanh Gọn** (`eq`) và **Khối Gạch** (`blocks`), sử dụng filter gốc nhẹ hơn (`aresample=10000`, `showfreqs` ma trận nhỏ, `flags=neighbor`, `drawgrid` cắt khe, `colorkey`).
 
 ## 8. Tài liệu tham khảo
 

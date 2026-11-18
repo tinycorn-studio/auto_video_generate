@@ -151,23 +151,23 @@
               <span class="field-hint">Chọn nhanh theo nội dung</span>
             </div>
             <div class="preset-list" role="radiogroup" aria-label="Kiểu sóng âm">
-              <button class="preset-card is-selected" type="button" role="radio" aria-checked="true" data-style="minimal">
-                <span class="preset-sample minimal-sample" aria-hidden="true"><svg viewBox="0 0 72 28"><path d="M1 14h8l4-7 5 14 6-17 5 18 6-12 5 8 6-11 5 14 5-8 5 5 5-10 5 6h5" /></svg></span>
-                <span class="preset-text"><strong>Tối giản</strong><span>Đường sóng mảnh · giọng nói, podcast</span></span>
+              <button class="preset-card is-selected" type="button" role="radio" aria-checked="true" data-style="studio">
+                <span class="preset-sample studio-sample" aria-hidden="true"><svg viewBox="0 0 36 22"><rect x="1" y="7" width="3" height="8" rx="1"/><rect x="5.5" y="4" width="3" height="14" rx="1"/><rect x="10" y="2" width="3" height="18" rx="1"/><rect x="14.5" y="5" width="3" height="12" rx="1"/><rect x="19" y="1" width="3" height="20" rx="1"/><rect x="23.5" y="4" width="3" height="14" rx="1"/><rect x="28" y="6" width="3" height="10" rx="1"/><rect x="32.5" y="8" width="3" height="6" rx="1"/></svg></span>
+                <span class="preset-text"><strong>Cột Studio</strong><span>Cột đối xứng dày · giọng nói, podcast</span></span>
                 <span class="radio-indicator" aria-hidden="true"></span>
               </button>
-              <button class="preset-card" type="button" role="radio" aria-checked="false" data-style="balanced">
-                <span class="preset-sample balanced-sample" aria-hidden="true"><svg viewBox="0 0 72 28"><path d="M1 13v2 M5 11v6 M9 10v8 M13 7v14 M17 11v6 M21 9v10 M25 3v22 M29 10v8 M33 8v12 M37 5v18 M41 11v6 M45 7v14 M49 2v24 M53 9v10 M57 6v16 M61 10v8 M65 4v20 M69 11v6" /></svg></span>
-                <span class="preset-text"><strong>Cân xứng</strong><span>Sóng đối xứng · rõ cả trên và dưới trục giữa</span></span>
+              <button class="preset-card" type="button" role="radio" aria-checked="false" data-style="eq">
+                <span class="preset-sample eq-sample" aria-hidden="true"><svg viewBox="0 0 36 22"><rect x="1" y="12" width="3.4" height="9" rx="1"/><rect x="6" y="7" width="3.4" height="14" rx="1"/><rect x="11" y="3" width="3.4" height="18" rx="1"/><rect x="16" y="8" width="3.4" height="13" rx="1"/><rect x="21" y="5" width="3.4" height="16" rx="1"/><rect x="26" y="10" width="3.4" height="11" rx="1"/><rect x="31" y="14" width="3.4" height="7" rx="1"/></svg></span>
+                <span class="preset-text"><strong>EQ Thanh Gọn</strong><span>Cột tần số rời · nhạc, thuyết minh</span></span>
                 <span class="radio-indicator" aria-hidden="true"></span>
               </button>
-              <button class="preset-card" type="button" role="radio" aria-checked="false" data-style="spectrum">
-                <span class="preset-sample spectrum-sample" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
-                <span class="preset-text"><strong>Spectrum</strong><span>Cột tần số · nhạc, beat</span></span>
+              <button class="preset-card" type="button" role="radio" aria-checked="false" data-style="blocks">
+                <span class="preset-sample blocks-sample" aria-hidden="true"><svg viewBox="0 0 36 22"><rect x="1" y="16" width="4.2" height="4" rx="0.8"/><rect x="1" y="10.5" width="4.2" height="4" rx="0.8"/><rect x="7" y="16" width="4.2" height="4" rx="0.8"/><rect x="7" y="10.5" width="4.2" height="4" rx="0.8"/><rect x="7" y="5" width="4.2" height="4" rx="0.8"/><rect x="13" y="16" width="4.2" height="4" rx="0.8"/><rect x="13" y="10.5" width="4.2" height="4" rx="0.8"/><rect x="13" y="5" width="4.2" height="4" rx="0.8"/><rect x="13" y="0" width="4.2" height="3.5" rx="0.8"/><rect x="19" y="16" width="4.2" height="4" rx="0.8"/><rect x="19" y="10.5" width="4.2" height="4" rx="0.8"/><rect x="25" y="16" width="4.2" height="4" rx="0.8"/><rect x="25" y="10.5" width="4.2" height="4" rx="0.8"/><rect x="25" y="5" width="4.2" height="4" rx="0.8"/><rect x="31" y="16" width="4.2" height="4" rx="0.8"/></svg></span>
+                <span class="preset-text"><strong>Khối Gạch</strong><span>Khối nhịp xếp tầng · tối giản, hiện đại</span></span>
                 <span class="radio-indicator" aria-hidden="true"></span>
               </button>
             </div>
-            <p class="preset-note" id="presetNote">Sóng gọn, nhẹ và dễ nhìn trên nền ảnh.</p>
+            <p class="preset-note" id="presetNote">Cột đối xứng tách khe thoáng, rõ ràng trên cả ảnh và video.</p>
           </div>
 
           <details class="wave-layout"><summary><span id="waveLayoutSummary">Vị trí: Dưới giữa · Kích thước: 100%</span><span>Chỉnh</span></summary><div class="field-group option-group position-group">
@@ -274,12 +274,8 @@
             <img class="selected-image" id="selectedImage" alt="Ảnh nền xem trước" hidden />
             <video class="selected-image" id="selectedVideo" muted loop playsinline autoplay hidden></video>
             <div class="video-shade"></div>
-            <div class="video-wave" id="videoWave" data-position="bottom-center" aria-hidden="true">
-              <svg viewBox="0 0 320 72" preserveAspectRatio="none">
-                <path class="minimal-wave" d="M2 36 C14 36 14 29 23 29 S34 47 44 47 55 21 66 21 77 39 87 39 97 33 106 33 116 52 127 52 139 26 149 26 158 42 170 42 180 28 190 28 201 47 211 47 222 33 231 33 243 38 252 38 264 22 274 22 285 44 294 44 305 35 318 35" />
-                <g class="balanced-wave" hidden><path class="wave-baseline" d="M0 36H320" /><path class="wave-pulses" d="M2 34v4 M7 32v8 M12 30v12 M17 27v18 M22 32v8 M27 29v14 M32 24v24 M37 31v10 M42 26v20 M47 20v32 M52 30v12 M57 27v18 M62 22v28 M67 31v10 M72 18v36 M77 27v18 M82 30v12 M87 24v24 M92 29v14 M97 21v30 M102 27v18 M107 31v10 M112 24v24 M117 15v42 M122 29v14 M127 25v22 M132 30v12 M137 18v36 M142 28v16 M147 23v26 M152 31v10 M157 19v34 M162 26v20 M167 29v14 M172 22v28 M177 31v10 M182 16v40 M187 26v20 M192 30v12 M197 24v24 M202 28v16 M207 18v36 M212 30v12 M217 25v22 M222 31v10 M227 21v30 M232 27v18 M237 17v38 M242 29v14 M247 24v24 M252 31v10 M257 20v32 M262 28v16 M267 14v44 M272 26v20 M277 30v12 M282 23v26 M287 31v10 M292 18v36 M297 27v18 M302 30v12 M307 24v24 M312 31v10 M318 28v16" /></g>
-              </svg>
-              <span class="spectrum-bars" hidden><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+            <div class="video-wave" id="videoWave" data-position="bottom-center" data-style="studio" aria-hidden="true">
+              <span class="wave-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
             </div>
             <div class="video-caption" id="videoCaption">Nền của bạn<br /><span>Sóng âm đồng bộ với bản thu</span></div>
             <div class="preview-empty-label" id="previewEmptyLabel">Ảnh hoặc video xem trước sẽ xuất hiện ở đây</div>

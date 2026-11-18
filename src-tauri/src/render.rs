@@ -412,6 +412,86 @@ pub fn get_render_capabilities(ffmpeg: &Path) -> RenderCapabilities {
     }
 }
 
+struct GridGeometry {
+    grid_w: u32,
+    pitch: u32,
+    gap: u32,
+}
+
+fn chunky_bar_geometry(target_width: u32, cols: u32) -> GridGeometry {
+    let pitch = (target_width / cols).max(4);
+    let raw_gap = (pitch * 2 / 5).clamp(2, pitch.saturating_sub(2).max(2));
+    let gap = if raw_gap >= 4 { raw_gap & !1 } else { raw_gap };
+    GridGeometry {
+        grid_w: pitch * cols,
+        pitch,
+        gap,
+    }
+}
+
+/// Builds a lightweight, zero-halo minimalist waveform chain using built-in FFmpeg filters.
+fn build_wave_filter(
+    style: &str,
+    width: u32,
+    height: u32,
+    wave_scale: u8,
+) -> Result<String, String> {
+    let scale_percent = u32::from(wave_scale);
+    let target_width = (width * 8 / 9 * scale_percent / 100).max(24);
+    let base_wave_height = match style {
+        "studio" => 144_u32,
+        "eq" | "blocks" => 160_u32,
+        _ => return Err("Kiểu sóng không hợp lệ.".to_string()),
+    };
+    let raw_height = (base_wave_height * height / 1920 * scale_percent / 100).max(16);
+
+    let chain = match style {
+        "studio" => {
+            let geom = chunky_bar_geometry(target_width, 32);
+            let half_h = (raw_height / 2).max(8);
+            let grid_h = half_h * 2;
+            let x_off = -(geom.gap as i32 / 2);
+            let h_off = grid_h * 2;
+            format!(
+                "[a_viz]aformat=channel_layouts=mono,aresample=10000,showfreqs=s=32x{half_h}:mode=bar:ascale=log:fscale=log:win_size=512:averaging=3:rate=30:colors=0xFFFFFF,split[wt][wb];[wb]vflip[wbf];[wt][wbf]vstack,scale={grid_w}:{grid_h}:flags=neighbor,drawgrid=x={x_off}:y={grid_h}:w={pitch}:h={h_off}:t={gap}:color=black@1,format=rgba,colorkey=0x000000:0.07:0.0[wave]",
+                grid_w = geom.grid_w,
+                pitch = geom.pitch,
+                gap = geom.gap,
+            )
+        }
+        "eq" => {
+            let geom = chunky_bar_geometry(target_width, 28);
+            let grid_h = raw_height;
+            let x_off = -(geom.gap as i32 / 2);
+            let h_off = grid_h * 2;
+            format!(
+                "[a_viz]aformat=channel_layouts=mono,aresample=10000,showfreqs=s=28x{grid_h}:mode=bar:ascale=log:fscale=log:win_size=512:averaging=4:rate=30:colors=0xFF8FAB,scale={grid_w}:{grid_h}:flags=neighbor,drawgrid=x={x_off}:y={grid_h}:w={pitch}:h={h_off}:t={gap}:color=black@1,format=rgba,colorkey=0x000000:0.07:0.0[wave]",
+                grid_w = geom.grid_w,
+                pitch = geom.pitch,
+                gap = geom.gap,
+            )
+        }
+        "blocks" => {
+            let geom = chunky_bar_geometry(target_width, 24);
+            let rows = (raw_height / 18).clamp(4, 8);
+            let row_pitch = (raw_height / rows).max(6);
+            let grid_h = row_pitch * rows;
+            let raw_brick_gap = (row_pitch * 2 / 5)
+                .clamp(2, (geom.pitch.saturating_sub(2)).min(row_pitch.saturating_sub(2)).max(2));
+            let brick_gap = if raw_brick_gap >= 4 { raw_brick_gap & !1 } else { raw_brick_gap };
+            let x_off = -(brick_gap as i32 / 2);
+            format!(
+                "[a_viz]aformat=channel_layouts=mono,aresample=10000,showfreqs=s=24x{rows}:mode=bar:ascale=log:fscale=log:win_size=512:averaging=3:rate=30:colors=0x75E8E1,scale={grid_w}:{grid_h}:flags=neighbor,drawgrid=x={x_off}:y=0:w={pitch}:h={row_pitch}:t={brick_gap}:color=black@1,format=rgba,colorkey=0x000000:0.07:0.0[wave]",
+                grid_w = geom.grid_w,
+                pitch = geom.pitch,
+            )
+        }
+        _ => unreachable!("Style was validated above"),
+    };
+
+    Ok(chain)
+}
+
 pub fn build_render_plan(spec: &RenderSpec<'_>, encoder: VideoEncoder) -> Result<RenderPlan, String> {
     let (width, height) = match spec.output_format {
         "portrait" => (1080_u32, 1920_u32),
@@ -474,27 +554,7 @@ pub fn build_render_plan(spec: &RenderSpec<'_>, encoder: VideoEncoder) -> Result
         }
     };
 
-    let scale_percent = u32::from(spec.wave_scale);
-    let wave_width = (width * 8 / 9 * scale_percent / 100).max(2);
-    let base_wave_height = match spec.style {
-        "minimal" | "balanced" => 144_u32,
-        "spectrum" => 176_u32,
-        _ => return Err("Kiểu sóng không hợp lệ.".to_string()),
-    };
-    let wave_height = (base_wave_height * height / 1920 * scale_percent / 100).max(2);
-
-    let wave_filter = match spec.style {
-        "minimal" => format!(
-            "[a_viz]aformat=channel_layouts=mono,showwaves=s={wave_width}x{wave_height}:mode=line:rate=30:colors=0x75E8E1:scale=sqrt:draw=full,format=rgba,colorkey=0x000000:0.07:0.0[wave]"
-        ),
-        "balanced" => format!(
-            "[a_viz]aformat=channel_layouts=mono,showwaves=s={wave_width}x{wave_height}:mode=cline:rate=30:colors=0xFFFFFF:scale=sqrt:draw=full,format=rgba,colorkey=0x000000:0.07:0.0[wave]"
-        ),
-        "spectrum" => format!(
-            "[a_viz]aformat=channel_layouts=stereo,showfreqs=s={wave_width}x{wave_height}:mode=bar:ascale=log:fscale=log:win_size=2048:rate=30:colors=0xFF799A,format=rgba,colorkey=0x000000:0.07:0.0[wave]"
-        ),
-        _ => unreachable!("Style was validated above"),
-    };
+    let wave_filter = build_wave_filter(spec.style, width, height, spec.wave_scale)?;
 
     let (overlay_x, overlay_y) = match spec.wave_position {
         "top-left" => ("W*0.0555", "H*0.05"),
@@ -730,7 +790,7 @@ Input #0, mp3, from 'song.mp3':
                 background_path: Path::new("bg.png"),
                 audio_path: Path::new("voice.wav"),
                 temp_output: Path::new("out.mp4"),
-                style: "minimal",
+                style: "studio",
                 output_format: "portrait",
                 wave_position: "bottom-center",
                 wave_scale: 100,
@@ -766,7 +826,7 @@ Input #0, mp3, from 'song.mp3':
                 background_path: Path::new("bg.mp4"),
                 audio_path: Path::new("voice.wav"),
                 temp_output: Path::new("out.mp4"),
-                style: "balanced",
+                style: "eq",
                 output_format: "portrait",
                 wave_position: "center",
                 wave_scale: 80,
@@ -801,7 +861,7 @@ Input #0, mp3, from 'song.mp3':
                 background_path: Path::new("4k.mp4"),
                 audio_path: Path::new("voice.wav"),
                 temp_output: Path::new("out.mp4"),
-                style: "spectrum",
+                style: "blocks",
                 output_format: "landscape",
                 wave_position: "bottom-center",
                 wave_scale: 100,
@@ -827,7 +887,7 @@ Input #0, mp3, from 'song.mp3':
                 background_path: Path::new("4k.mp4"),
                 audio_path: Path::new("voice.wav"),
                 temp_output: Path::new("out.mp4"),
-                style: "minimal",
+                style: "studio",
                 output_format: "landscape",
                 wave_position: "bottom-center",
                 wave_scale: 100,
@@ -852,7 +912,7 @@ Input #0, mp3, from 'song.mp3':
                 background_path: Path::new("4k.mp4"),
                 audio_path: Path::new("voice.wav"),
                 temp_output: Path::new("out.mp4"),
-                style: "minimal",
+                style: "studio",
                 output_format: "landscape",
                 wave_position: "bottom-center",
                 wave_scale: 100,
@@ -879,7 +939,7 @@ Input #0, mp3, from 'song.mp3':
                 background_path: Path::new("long.mp4"),
                 audio_path: Path::new("voice.wav"),
                 temp_output: Path::new("out.mp4"),
-                style: "minimal",
+                style: "studio",
                 output_format: "landscape",
                 wave_position: "bottom-center",
                 wave_scale: 100,
@@ -917,7 +977,7 @@ Input #0, mp3, from 'song.mp3':
                 background_path: Path::new("rot.mp4"),
                 audio_path: Path::new("voice.wav"),
                 temp_output: Path::new("out.mp4"),
-                style: "minimal",
+                style: "studio",
                 output_format: "portrait",
                 wave_position: "bottom-center",
                 wave_scale: 100,
@@ -967,7 +1027,6 @@ Input #0, matroska, from 'anamorphic.mkv':
         std::fs::create_dir_all(&dir).unwrap();
         let bg_video = dir.join("input_bg.mp4");
         let speech_wav = dir.join("speech.wav");
-        let out_mp4 = dir.join("final_out.mp4");
 
         let mut make_vid = Command::new(&ffmpeg);
         configure_ffmpeg_command(&mut make_vid);
@@ -1027,44 +1086,112 @@ Input #0, matroska, from 'anamorphic.mkv':
         assert!((audio_info.duration - 3.0).abs() < 0.2);
 
         let encoder = resolve_encoder(&ffmpeg, PerformanceMode::Auto);
-        let plan = build_render_plan(
-            &RenderSpec {
-                background_kind: BackgroundKind::Video,
-                background_path: &bg_video,
-                audio_path: &speech_wav,
-                temp_output: &out_mp4,
-                style: "balanced",
-                output_format: "portrait",
-                wave_position: "bottom-center",
-                wave_scale: 90,
-                duration_mode: DurationMode::FitAudio,
-                short_video_mode: ShortVideoMode::Loop,
-                start_delay_sec: 1.0,
-                end_delay_sec: 1.0,
-                keep_video_audio: true,
-                video_info: Some(&video_info),
-                audio_info: &audio_info,
-            },
-            encoder,
-        )
-        .unwrap();
+        for style in ["studio", "eq", "blocks"] {
+            let styled_out = dir.join(format!("final_{style}.mp4"));
+            let plan = build_render_plan(
+                &RenderSpec {
+                    background_kind: BackgroundKind::Video,
+                    background_path: &bg_video,
+                    audio_path: &speech_wav,
+                    temp_output: &styled_out,
+                    style,
+                    output_format: "portrait",
+                    wave_position: "bottom-center",
+                    wave_scale: 90,
+                    duration_mode: DurationMode::FitAudio,
+                    short_video_mode: ShortVideoMode::Loop,
+                    start_delay_sec: 1.0,
+                    end_delay_sec: 1.0,
+                    keep_video_audio: true,
+                    video_info: Some(&video_info),
+                    audio_info: &audio_info,
+                },
+                encoder,
+            )
+            .unwrap();
 
-        let mut run = Command::new(&ffmpeg);
-        configure_ffmpeg_command(&mut run);
-        let output = run.args(&plan.args).output().unwrap();
-        assert!(
-            output.status.success(),
-            "FFmpeg render failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
+            let mut run = Command::new(&ffmpeg);
+            configure_ffmpeg_command(&mut run);
+            let output = run.args(&plan.args).output().unwrap();
+            assert!(
+                output.status.success(),
+                "FFmpeg render failed for {style}: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
 
-        let rendered = probe_media(&ffmpeg, &out_mp4).unwrap();
-        assert!(rendered.has_video && rendered.has_audio);
-        assert_eq!(rendered.width, Some(1080));
-        assert_eq!(rendered.height, Some(1920));
-        assert!((rendered.fps.unwrap_or_default() - 30.0).abs() < 0.5);
-        assert!((rendered.duration - 5.0).abs() < 0.25);
+            let rendered = probe_media(&ffmpeg, &styled_out).unwrap();
+            assert!(rendered.has_video && rendered.has_audio);
+            assert_eq!(rendered.width, Some(1080));
+            assert_eq!(rendered.height, Some(1920));
+            assert!((rendered.fps.unwrap_or_default() - 30.0).abs() < 0.5);
+            assert!((rendered.duration - 5.0).abs() < 0.25);
+        }
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn chunky_waveform_styles_and_validation() {
+        let audio = sample_audio(6.0);
+        for (style, format, scale) in [
+            ("studio", "portrait", 100),
+            ("eq", "landscape", 75),
+            ("blocks", "portrait", 25),
+        ] {
+            let plan = build_render_plan(
+                &RenderSpec {
+                    background_kind: BackgroundKind::Image,
+                    background_path: Path::new("bg.png"),
+                    audio_path: Path::new("voice.wav"),
+                    temp_output: Path::new("out.mp4"),
+                    style,
+                    output_format: format,
+                    wave_position: "bottom-center",
+                    wave_scale: scale,
+                    duration_mode: DurationMode::FitAudio,
+                    short_video_mode: ShortVideoMode::Loop,
+                    start_delay_sec: 0.0,
+                    end_delay_sec: 0.0,
+                    keep_video_audio: false,
+                    video_info: None,
+                    audio_info: &audio,
+                },
+                VideoEncoder::Libx264Fast,
+            )
+            .unwrap();
+            let graph = filter_graph(&plan);
+            assert!(graph.contains("aresample=10000"));
+            assert!(graph.contains("drawgrid="));
+            assert!(graph.contains("flags=neighbor"));
+            if style == "studio" {
+                assert!(graph.contains("vflip"));
+                assert!(graph.contains("vstack"));
+            }
+            if style == "blocks" {
+                assert!(graph.contains("showfreqs=s=24x"));
+            }
+        }
+
+        let invalid = build_render_plan(
+            &RenderSpec {
+                background_kind: BackgroundKind::Image,
+                background_path: Path::new("bg.png"),
+                audio_path: Path::new("voice.wav"),
+                temp_output: Path::new("out.mp4"),
+                style: "minimal",
+                output_format: "portrait",
+                wave_position: "bottom-center",
+                wave_scale: 100,
+                duration_mode: DurationMode::FitAudio,
+                short_video_mode: ShortVideoMode::Loop,
+                start_delay_sec: 0.0,
+                end_delay_sec: 0.0,
+                keep_video_audio: false,
+                video_info: None,
+                audio_info: &audio,
+            },
+            VideoEncoder::Libx264Fast,
+        );
+        assert!(invalid.is_err());
     }
 }

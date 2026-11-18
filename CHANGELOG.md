@@ -15,6 +15,7 @@ Mọi thay đổi đáng chú ý của Wavely được ghi tại đây. Định 
 ### Changed
 
 - Tối ưu pipeline FFmpeg cho mọi video đầu vào: chuẩn hóa `fps=30` sớm trước khi resize/overlay, bỏ qua `scale`/`crop` khi kích thước và tỷ lệ đã khớp đầu ra, dùng `flags=bilinear`, chuyển `yuv420p` sớm, bỏ track ảnh bìa ẩn (`-vn`) trên audio, tính tọa độ overlay một lần (`eval=init`), và chạy FFmpeg ở mức ưu tiên thấp trên Windows để tránh giật máy khi xuất video.
+- Thay thế 3 kiểu sóng âm cũ (`Tối giản`, `Cân xứng`, `Spectrum`) bằng 3 kiểu sóng tối giản, dày dặn dựng hoàn toàn bằng filter native của FFmpeg (chi phí render tương đương hoặc nhẹ hơn): **Cột Studio** (`studio`), **EQ Thanh Gọn** (`eq`) và **Khối Gạch** (`blocks`).
 
 ## [0.5.0] - 2026-10-27
 

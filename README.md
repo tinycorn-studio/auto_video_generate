@@ -44,7 +44,7 @@ Tauri chỉ tạo bundle cho hệ điều hành đang build. Installer Windows/m
 - Khi dùng video nền: chọn **Fit theo âm thanh** (tự cắt video dài, hoặc lặp lại / giữ khung cuối / kéo chậm nếu video ngắn) hoặc **Fit theo độ dài video** (giữ nguyên độ dài video gốc, có tóm tắt timeline và cảnh báo khi bản thu vượt quá video).
 - Tùy chọn giữ và trộn nhẹ âm thanh gốc của video nền dưới giọng nói (tự kiểm tra video có track âm thanh hay không).
 - Tự động tối ưu hiệu năng render: chuẩn hóa `fps=30` sớm, bỏ qua resize khi video đã khớp `1080×1920`/`1920×1080`, tự dò tăng tốc GPU (`NVENC`, `QuickSync`, `AMD AMF`, `VideoToolbox`) và fallback CPU (`libx264`), hạ mức ưu tiên tiến trình để tránh lag máy.
-- Chọn đường sóng Tối giản, sóng Cân xứng trên/dưới trục giữa hoặc cột phổ Spectrum.
+- Chọn 1 trong 3 kiểu sóng tối giản, dày dặn: **Cột Studio** (cột đối xứng tách khe), **EQ Thanh Gọn** (cột tần số rời chuyển động mượt), hoặc **Khối Gạch** (khối nhịp xếp tầng hiện đại).
 - Đặt wave ở 9 vùng của khung hình và chỉnh kích thước từ 25% đến 100%; xem trước thay đổi đồng bộ với video xuất.
 - Chọn MP4 dọc 1080 × 1920 hoặc ngang 1920 × 1080 ở 30 fps, H.264/AAC, CRF mặc định 21.
 - Theo dõi tiến độ, hủy render; video chỉ được đưa vào vị trí đích sau khi xuất thành công.

@@ -5,7 +5,7 @@ import { capturePublishingRequest, generatePublishing, initPublishing, publishin
 import type { PublishingRequest } from "./publishing";
 import "./style.css";
 
-type VisualizerStyle = "minimal" | "balanced" | "spectrum";
+type VisualizerStyle = "studio" | "eq" | "blocks";
 type OutputFormat = "portrait" | "landscape";
 type WavePosition = "top-left" | "top-center" | "top-right" | "center-left" | "center" | "center-right" | "bottom-left" | "bottom-center" | "bottom-right";
 type BackgroundKind = "image" | "video";
@@ -81,7 +81,7 @@ const state = {
   probingVideo: false,
   audioPath: "",
   audioDurationSec: 0,
-  style: "minimal" as VisualizerStyle,
+  style: "studio" as VisualizerStyle,
   outputFormat: "portrait" as OutputFormat,
   wavePosition: "bottom-center" as WavePosition,
   waveScale: 100,
@@ -738,20 +738,14 @@ function updatePreset(style: VisualizerStyle): void {
     button.classList.toggle("is-selected", selected);
     button.setAttribute("aria-checked", String(selected));
   });
-  const spectrum = style === "spectrum";
-  const balanced = style === "balanced";
   const wave = byId("videoWave");
-  byId("presetNote").textContent = spectrum
-    ? "Cột tần số gọn, phù hợp nhạc và beat."
-    : balanced
-      ? "Mỗi nhịp vươn đều lên trên và xuống dưới trục giữa."
-      : "Đường sóng mảnh, nhẹ và dễ nhìn trên nền ảnh/video.";
-  wave.classList.toggle("is-spectrum", spectrum);
-  wave.classList.toggle("is-balanced", balanced);
-  wave.querySelector("svg")!.toggleAttribute("hidden", spectrum);
-  wave.querySelector<SVGPathElement>(".minimal-wave")!.toggleAttribute("hidden", balanced);
-  wave.querySelector<SVGGElement>(".balanced-wave")!.toggleAttribute("hidden", !balanced);
-  wave.querySelector<HTMLElement>(".spectrum-bars")!.hidden = !spectrum;
+  const notes: Record<VisualizerStyle, string> = {
+    studio: "Cột đối xứng tách khe thoáng, rõ ràng trên mọi nền.",
+    eq: "Cột tần số dày chuyển động mượt, hợp nhạc và thuyết minh.",
+    blocks: "Khối gạch xếp tầng tối giản, sắc nét trên cả video và ảnh.",
+  };
+  byId("presetNote").textContent = notes[style];
+  wave.dataset.style = style;
   updateWaveScale(state.waveScale);
   videoFrame.dataset.style = style;
 }
@@ -821,7 +815,7 @@ function updateWaveScale(scale: number): void {
   byId<HTMLInputElement>("waveScale").value = String(state.waveScale);
   const wave = byId("videoWave");
   wave.style.width = `${(8 / 9) * state.waveScale}%`;
-  wave.style.height = `${((state.style === "spectrum" ? 9.2 : 7.5) * state.waveScale) / 100}%`;
+  wave.style.height = `${((state.style === "studio" ? 7.5 : 8.33) * state.waveScale) / 100}%`;
   updateWaveLayoutSummary();
 }
 
@@ -987,6 +981,7 @@ async function init(): Promise<void> {
     updateWaveScale(Number((event.currentTarget as HTMLInputElement).value))
   );
 
+  updatePreset(state.style);
   updateWavePosition(state.wavePosition);
   updateWaveScale(state.waveScale);
   updateOutputSummaryText();
