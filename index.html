@@ -25,30 +25,38 @@
       <main class="workspace">
         <section class="editor-panel" aria-labelledby="pageTitle">
           <div class="eyebrow">TẠO VIDEO · 01</div>
-          <h1 id="pageTitle">Một ảnh, một giai điệu</h1>
-          <p class="intro">Ghép bản thu thành video, chuẩn bị nội dung để chia sẻ.</p>
+          <h1 id="pageTitle">Ảnh hoặc video, một giai điệu</h1>
+          <p class="intro">Ghép bản thu với ảnh hoặc video nền, chuẩn bị nội dung để chia sẻ.</p>
 
           <div class="field-group">
             <div class="field-heading">
-              <label for="imagePicker">Ảnh nền</label>
-              <span class="field-hint" id="imageAspectHint">Ảnh sẽ cắt theo 9:16</span>
+              <label for="mediaPicker">Nền video</label>
+              <span class="field-hint" id="imageAspectHint">Tự căn giữa và cắt theo 9:16</span>
             </div>
-            <button class="file-card" id="imagePicker" type="button">
-              <span class="file-icon image-icon" aria-hidden="true">
+            <div class="source-mode-options background-kind-tabs" role="radiogroup" aria-label="Loại nền video">
+              <label><input type="radio" name="backgroundKind" id="bgKindImage" value="image" checked /><span>Ảnh nền</span></label>
+              <label><input type="radio" name="backgroundKind" id="bgKindVideo" value="video" /><span>Video nền</span></label>
+            </div>
+            <button class="file-card" id="mediaPicker" type="button">
+              <span class="file-icon image-icon" id="mediaIcon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="3" width="17" height="18" rx="2.5" stroke="currentColor" stroke-width="1.7"/><circle cx="15.5" cy="8" r="1.6" fill="currentColor"/><path d="m5 17 4.7-4.7 3.1 3.1 2.3-2.3 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </span>
               <span class="file-copy">
-                <strong id="imageName">Chọn ảnh nền</strong>
-                <span id="imageDetails">JPG, PNG hoặc WebP</span>
+                <strong id="mediaName">Chọn ảnh nền</strong>
+                <span id="mediaDetails">JPG, PNG, WebP hoặc BMP</span>
               </span>
-              <span class="file-action" id="imageAction">Chọn ảnh</span>
+              <span class="file-action" id="mediaAction">Chọn ảnh</span>
             </button>
+            <label class="inline-check" id="keepVideoAudioRow" hidden>
+              <input id="keepVideoAudio" type="checkbox" />
+              <span id="keepVideoAudioLabel">Giữ tiếng gốc của video nền (trộn nhẹ dưới giọng nói)</span>
+            </label>
           </div>
 
           <div class="field-group">
             <div class="field-heading">
               <label for="audioPicker">Âm thanh</label>
-              <span class="field-hint">Video theo độ dài bản thu</span>
+              <span class="field-hint" id="audioHint">Đoạn ghi âm / giọng nói chính</span>
             </div>
             <button class="file-card" id="audioPicker" type="button">
               <span class="file-icon audio-icon" aria-hidden="true">
@@ -66,6 +74,56 @@
               <div class="mini-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
             </div>
             <audio id="audioElement" preload="metadata"></audio>
+          </div>
+
+          <div class="field-group timing-card">
+            <div class="field-heading">
+              <label>Thời lượng &amp; đồng bộ</label>
+              <span class="field-hint">Khoảng lặng so với đoạn ghi âm nói</span>
+            </div>
+            <div class="delay-grid">
+              <label class="delay-field">
+                <span>Delay đầu video</span>
+                <div class="delay-input-wrap">
+                  <input id="startDelay" type="number" min="0" max="300" step="0.5" value="0" />
+                  <span>giây</span>
+                </div>
+              </label>
+              <label class="delay-field">
+                <span>Delay cuối video</span>
+                <div class="delay-input-wrap">
+                  <input id="endDelay" type="number" min="0" max="300" step="0.5" value="0" />
+                  <span>giây</span>
+                </div>
+              </label>
+            </div>
+            <div id="videoTimingControls" hidden>
+              <div class="field-heading sub-heading">
+                <label>Cách fit thời lượng</label>
+                <span class="field-hint">Khi dùng video nền</span>
+              </div>
+              <div class="option-list option-list--two" role="radiogroup" aria-label="Cách fit thời lượng video">
+                <button class="choice-card is-selected" type="button" role="radio" aria-checked="true" data-duration-mode="fit-audio">
+                  <span class="choice-copy"><strong>Fit theo âm thanh</strong><small>Theo ghi âm + delay đầu/cuối</small></span>
+                  <span class="radio-indicator" aria-hidden="true"></span>
+                </button>
+                <button class="choice-card" type="button" role="radio" aria-checked="false" data-duration-mode="fit-video">
+                  <span class="choice-copy"><strong>Fit theo độ dài video</strong><small>Giữ nguyên độ dài video nền</small></span>
+                  <span class="radio-indicator" aria-hidden="true"></span>
+                </button>
+              </div>
+              <div id="shortVideoGroup" class="short-video-group">
+                <div class="field-heading sub-heading">
+                  <label>Khi video ngắn hơn âm thanh</label>
+                </div>
+                <div class="source-mode-options short-video-tabs" role="radiogroup" aria-label="Xử lý khi video ngắn hơn âm thanh">
+                  <label><input type="radio" name="shortVideoMode" value="loop" checked /><span>Lặp lại</span></label>
+                  <label><input type="radio" name="shortVideoMode" value="freeze" /><span>Giữ khung cuối</span></label>
+                  <label><input type="radio" name="shortVideoMode" value="stretch" /><span>Kéo chậm</span></label>
+                </div>
+              </div>
+            </div>
+            <p class="timeline-summary" id="timelineSummary" hidden></p>
           </div>
 
           <div class="field-group option-group">
@@ -158,6 +216,18 @@
             <p class="ai-disclosure" id="geminiDisclosure">Wavely xử lý video trên máy. Audio chỉ được gửi tới dịch vụ AI khi bạn chọn chế độ Dùng audio; chế độ transcript chỉ gửi phần văn bản. Cần Internet và có thể phát sinh phí API.</p>
           </section>
 
+          <div class="field-group option-group">
+            <div class="field-heading">
+              <label>Tối ưu khi xuất</label>
+              <span class="field-hint" id="encoderHint">Đang kiểm tra phần cứng…</span>
+            </div>
+            <div class="source-mode-options performance-tabs" role="radiogroup" aria-label="Chế độ hiệu năng xuất video">
+              <label><input type="radio" name="performanceMode" value="auto" checked /><span>Nhẹ máy (Tự động)</span></label>
+              <label><input type="radio" name="performanceMode" value="cpu-fast" /><span>CPU nhanh</span></label>
+              <label><input type="radio" name="performanceMode" value="cpu-compact" /><span>CPU file gọn</span></label>
+            </div>
+          </div>
+
           <div class="output-summary">
             <span class="output-icon" aria-hidden="true">↗</span>
             <span><strong>Cấu hình xuất</strong><small id="outputDimensions">MP4 · 1080 × 1920 · 30 fps · H.264</small></span>
@@ -202,6 +272,7 @@
               <div class="placeholder-person"></div>
             </div>
             <img class="selected-image" id="selectedImage" alt="Ảnh nền xem trước" hidden />
+            <video class="selected-image" id="selectedVideo" muted loop playsinline autoplay hidden></video>
             <div class="video-shade"></div>
             <div class="video-wave" id="videoWave" data-position="bottom-center" aria-hidden="true">
               <svg viewBox="0 0 320 72" preserveAspectRatio="none">
@@ -210,10 +281,10 @@
               </svg>
               <span class="spectrum-bars" hidden><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
             </div>
-            <div class="video-caption" id="videoCaption">Ảnh của bạn<br /><span>Sóng âm đồng bộ với bản thu</span></div>
-            <div class="preview-empty-label" id="previewEmptyLabel">Ảnh xem trước sẽ xuất hiện ở đây</div>
+            <div class="video-caption" id="videoCaption">Nền của bạn<br /><span>Sóng âm đồng bộ với bản thu</span></div>
+            <div class="preview-empty-label" id="previewEmptyLabel">Ảnh hoặc video xem trước sẽ xuất hiện ở đây</div>
           </div>
-          <div class="preview-description"><span class="preview-live-dot"></span><span>Ảnh và âm thanh được xử lý trên máy tính</span></div>
+          <div class="preview-description"><span class="preview-live-dot"></span><span>Ảnh/video và âm thanh được xử lý trên máy tính</span></div>
           <div class="preview-footnote">Bản xem trước thể hiện bố cục và kiểu sóng. Chuyển động trong video xuất sẽ bám theo âm thanh thực.</div>
           <div class="publishing-tip"><span class="ai-icon" aria-hidden="true">≡</span><div><strong>Sẵn sàng cho lần đăng tiếp theo</strong><p>Dùng audio mặc định hoặc chuyển sang nhập transcript. Dịch vụ AI tạo nội dung riêng cho từng nền tảng và một file .txt lưu cạnh video.</p></div></div>
           </div>

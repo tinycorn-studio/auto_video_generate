@@ -1,12 +1,12 @@
 # Wavely
 
-Wavely ghép một ảnh với file ghi âm thành video MP4 có sóng âm đồng bộ. Có thể xuất video dọc hoặc ngang, chọn kiểu sóng, đặt wave ở 9 vùng trong khung và thu nhỏ wave từ 25% đến 100%. Video được xử lý trực tiếp trên Windows hoặc macOS. Tùy chọn Gemini tạo thêm tiêu đề, mô tả, hashtag và từ khóa để đăng bài.
+Wavely ghép ảnh nền hoặc video nền với file ghi âm thành video MP4 có sóng âm đồng bộ. Có thể chọn fit độ dài theo âm thanh (kèm delay đầu/cuối, lặp/giữ khung/kéo chậm) hoặc giữ nguyên độ dài video nền, xuất video dọc hoặc ngang, chọn kiểu sóng, đặt wave ở 9 vùng trong khung và thu nhỏ wave từ 25% đến 100%. Video được tối ưu xử lý trực tiếp trên Windows hoặc macOS (tự dò GPU và fallback CPU). Tùy chọn Gemini tạo thêm tiêu đề, mô tả, hashtag và từ khóa để đăng bài.
 
 ## Yêu cầu hệ thống
 
 - Windows 10/11 64-bit hoặc macOS 13 trở lên.
 - FFmpeg 6 trở lên, có các filter `showwaves`, `showfreqs` và encoder H.264/AAC. Có thể dùng FFmpeg cài sẵn hoặc tải engine trong ứng dụng.
-- Đầu vào: JPG/PNG/WebP/BMP và WAV/MP3/M4A/AAC/FLAC/OGG/Opus.
+- Đầu vào: ảnh (`JPG/PNG/WebP/BMP`) hoặc video (`MP4/MOV/MKV/WebM/M4V/AVI`) và âm thanh (`WAV/MP3/M4A/AAC/FLAC/OGG/Opus`).
 - Tạo video chạy offline sau khi cài engine. Tính năng nội dung Gemini cần Internet, key Google Gemini hoặc XPiki có quyền dùng `gemini-3.8-flash` và quota phù hợp.
 
 Nếu chưa có FFmpeg, bấm **Tải engine FFmpeg** trong Wavely. Ứng dụng chỉ tải sau khi bạn chủ động bấm nút, xác minh SHA-256 của gói FFmpeg 9.0.2, rồi lưu riêng file engine trong thư mục dữ liệu ứng dụng. Archive tạm được xóa sau cài đặt. Lần tải đầu cần Internet; nếu tắt Gemini, các lần xuất tiếp theo chạy offline và file ảnh/âm thanh không rời máy. FFmpeg cài sẵn trong `PATH` vẫn được hỗ trợ. Có thể cài thủ công bằng `winget install --id Gyan.FFmpeg -e` trên Windows hoặc `brew install ffmpeg` trên macOS. Nguồn build và thông tin license được ghi trong [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
@@ -38,8 +38,12 @@ Tauri chỉ tạo bundle cho hệ điều hành đang build. Installer Windows/m
 
 ## Tính năng
 
-- Chọn một ảnh và một file âm thanh bằng hộp thoại native.
-- Xem trước ảnh, nghe thử audio và xem thời lượng.
+- Chọn ảnh nền hoặc video nền và một file âm thanh bằng hộp thoại native.
+- Xem trước ảnh/video nền, nghe thử audio và xem thời lượng.
+- Đặt khoảng **delay đầu video** và **delay cuối video** (0–300 giây) so với đoạn ghi âm nói.
+- Khi dùng video nền: chọn **Fit theo âm thanh** (tự cắt video dài, hoặc lặp lại / giữ khung cuối / kéo chậm nếu video ngắn) hoặc **Fit theo độ dài video** (giữ nguyên độ dài video gốc, có tóm tắt timeline và cảnh báo khi bản thu vượt quá video).
+- Tùy chọn giữ và trộn nhẹ âm thanh gốc của video nền dưới giọng nói (tự kiểm tra video có track âm thanh hay không).
+- Tự động tối ưu hiệu năng render: chuẩn hóa `fps=30` sớm, bỏ qua resize khi video đã khớp `1080×1920`/`1920×1080`, tự dò tăng tốc GPU (`NVENC`, `QuickSync`, `AMD AMF`, `VideoToolbox`) và fallback CPU (`libx264`), hạ mức ưu tiên tiến trình để tránh lag máy.
 - Chọn đường sóng Tối giản, sóng Cân xứng trên/dưới trục giữa hoặc cột phổ Spectrum.
 - Đặt wave ở 9 vùng của khung hình và chỉnh kích thước từ 25% đến 100%; xem trước thay đổi đồng bộ với video xuất.
 - Chọn MP4 dọc 1080 × 1920 hoặc ngang 1920 × 1080 ở 30 fps, H.264/AAC, CRF mặc định 21.
@@ -58,7 +62,8 @@ Chưa có phím tắt riêng trong phiên bản đầu.
 ## Kiến trúc
 
 - `src/`: giao diện TypeScript/CSS chạy trên WebView hệ thống của Tauri.
-- `src-tauri/`: lệnh Rust chọn cấu hình filtergraph, gọi FFmpeg bằng tham số tách rời, đọc tiến độ và quản lý hủy.
+- `src-tauri/`: lệnh Rust quản lý vòng đời engine, tiến độ và hủy render.
+- `src-tauri/src/render.rs`: đọc thông số media từ `ffmpeg -i`, dò encoder phần cứng và dựng filtergraph tối ưu cho ảnh/video nền, delay, fit thời lượng và trộn âm thanh.
 - `src/publishing.ts`, `src-tauri/src/publishing.rs`: giao diện nội dung, kho API key và kiểm tra kết quả; frontend chỉ nhận trạng thái/kết nối, không nhận lại key đã lưu.
 - `src-tauri/src/publishing/provider.rs`: nhận diện key, kiểm tra model, tạo request Google/XPiki và đưa phản hồi về cùng cấu trúc; endpoint được cố định theo dịch vụ.
 - `VERSION`: nguồn version duy nhất; `scripts/sync-version.mjs` đồng bộ metadata npm, Cargo và Tauri trước khi build.

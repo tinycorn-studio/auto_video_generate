@@ -1,8 +1,8 @@
 # Kế hoạch AutoVideoGenerator
 
-**Cập nhật lần cuối:** 2026-10-27
-**Trạng thái hiện tại:** Wavely v0.5.0 đang chờ merge PR #3; CI build và publishing tests đã qua trên ba mục tiêu, người dùng đã chạy thử app trên macOS; release công khai gần nhất vẫn là v0.3.0 cho đến khi publish tag v0.5.0
-**Mục tiêu:** Tạo ứng dụng desktop chạy trên Windows và macOS, ghép một file ghi âm với một ảnh thành video có sóng âm đồng bộ.
+**Cập nhật lần cuối:** 2026-11-18
+**Trạng thái hiện tại:** Nhánh `feat/video-background-sync` hoàn thiện tính năng nền video, delay đầu/cuối so với giọng đọc, chế độ fit theo âm thanh/video và tối ưu pipeline render FFmpeg (bao gồm phát hiện GPU H.264 + tự động fallback CPU)
+**Mục tiêu:** Tạo ứng dụng desktop chạy trên Windows và macOS, ghép một file ghi âm với ảnh hoặc video nền thành video có sóng âm đồng bộ.
 
 ## 1. Yêu cầu sản phẩm
 
@@ -116,6 +116,7 @@ Các mốc được cập nhật tại đây cùng với thay đổi mã nguồn
 | **M7 · Khổ và bố cục xuất** | Đã phát hành trong v0.3.0; người dùng xác nhận render thành công; chưa kiểm tra toàn bộ tổ hợp khổ/vị trí/preset | Chọn khổ dọc/ngang; preview và FFmpeg đồng bộ bố cục |
 | **M8 · Sóng cân xứng và điều chỉnh bố cục** | **Hoàn thành · v0.4.0 đã merge; người dùng xác nhận xuất video thành công trên Windows; CI xanh cả ba mục tiêu** | Kiểu sóng cân xứng `cline`, lưới 3 × 3 vị trí và scale 25–100% |
 | **M9 · Nội dung đăng bài từ audio** | **Hoàn thành về tính năng · PR #3 chờ merge; CI xanh trên ba mục tiêu, app đã được người dùng chạy thử trên macOS** | Google Gemini/XPiki, chế độ Audio mặc định hoặc Transcript, nội dung tiếng Anh mặc định và file `.txt` |
+| **M10 · Nền video, delay và tối ưu render** | **Hoàn thành về tính năng trên nhánh `feat/video-background-sync`; đã test local trên Windows 11 + Radeon RX550** | Hỗ trợ video nền (`MP4`/`MOV`/`MKV`/`WebM`/`M4V`/`AVI`), delay đầu/cuối 0–300s, fit âm thanh/video (`loop`/`freeze`/`stretch`), mix tiếng video gốc, tối ưu filter graph & GPU H.264 + fallback `libx264` |
 
 ## 5. Tiêu chí nghiệm thu
 
@@ -316,6 +317,13 @@ Khi có thay đổi, cập nhật cả bảng mốc ở trên và nhật ký sau
 - Cập nhật prompt, thông báo dữ liệu được gửi, UI xem trước, README và CHANGELOG v0.5.0; không lưu lịch sử bài đăng và không kiểm tra trùng lặp.
 - Người dùng xác nhận đã chạy thử app local trên macOS. `cargo test --manifest-path src-tauri/Cargo.toml --lib publishing::` thành công với 14/14 test; CI run [#40540574258](https://github.com/tinycorn-studio/auto_video_generate/actions/runs/40540574258) build installer, chạy publishing regressions và upload artifacts thành công trên Windows x64, macOS Intel và Apple Silicon.
 - PR [#3](https://github.com/tinycorn-studio/auto_video_generate/pull/3) chờ merge và phát hành; chưa gắn tag hoặc publish v0.5.0.
+
+### 2026-11-18 · Triển khai nền video, delay đồng bộ và tối ưu pipeline render
+
+- Tách mô-đun `src-tauri/src/render.rs` với `probe_media` (qua `ffmpeg -i`, không đòi hỏi `ffprobe`), phát hiện GPU encoder H.264 (`h264_nvenc`, `h264_qsv`, `h264_amf`, `h264_videotoolbox`) có cache theo đường dẫn engine, kèm tự động fallback sang `libx264` (`superfast`) khi GPU encode thất bại.
+- Hỗ trợ chọn nền `Ảnh nền` hoặc `Video nền`, `Delay đầu video` / `Delay cuối video` (`0–300s`), hai chế độ thời lượng (`Fit theo âm thanh` với `Lặp lại` / `Giữ khung cuối` / `Kéo chậm` và `Fit theo độ dài video`), cùng tùy chọn giữ tiếng gốc video nền (`amix`).
+- Tối ưu FFmpeg filter graph cho mọi video đầu vào: hạ `fps=30:round=near` ngay trước `scale`/`crop`/`overlay`, bỏ qua `scale`/`crop` khi đúng chuẩn `1080×1920` hoặc `1920×1080` (`SAR 1:1`, không xoay), dùng `flags=bilinear` + `format=yuv420p` sớm, `-stream_loop -1`, `-vn` cho luồng audio, `eval=init` cho `overlay`, và hạ ưu tiên tiến trình nền trên Windows (`BELOW_NORMAL_PRIORITY_CLASS | CREATE_NO_WINDOW`).
+- Cập nhật UI (`index.html`, `src/style.css`, `src/main.ts`) với thanh xem trước video `<video>`, tóm tắt timeline thời gian thực, chọn mức `Nhẹ máy (Tự động)` / `CPU nhanh` / `CPU file gọn` lưu trong `localStorage`, đồng thời chỉnh `.video-caption` lên `bottom: 15%` để tránh đè sóng âm.
 
 ## 8. Tài liệu tham khảo
 

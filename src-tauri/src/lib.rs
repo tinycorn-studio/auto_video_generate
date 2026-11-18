@@ -1,11 +1,11 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, ChildStderr, ChildStdout, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -13,6 +13,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Manager, State};
 
 mod publishing;
+mod render;
 
 type JobMap = HashMap<String, Arc<Mutex<ManagedProcess>>>;
 
@@ -374,8 +375,14 @@ fn find_in_path(executable: &str) -> Option<PathBuf> {
     None
 }
 
+fn run_ffmpeg_output(path: &Path, args: &[&str]) -> std::io::Result<std::process::Output> {
+    let mut cmd = Command::new(path);
+    render::configure_ffmpeg_command(&mut cmd);
+    cmd.args(args).output()
+}
+
 fn ffmpeg_problem(path: &Path) -> Option<String> {
-    let version_result = Command::new(path).args(["-hide_banner", "-version"]).output();
+    let version_result = run_ffmpeg_output(path, &["-hide_banner", "-version"]);
     let version_output = match version_result {
         Ok(output) if output.status.success() => String::from_utf8_lossy(&output.stdout).to_string(),
         Ok(output) => {
@@ -385,12 +392,12 @@ fn ffmpeg_problem(path: &Path) -> Option<String> {
         Err(error) => return Some(format!("Không mở được FFmpeg: {error}")),
     };
 
-    let filters = Command::new(path).args(["-hide_banner", "-filters"]).output();
+    let filters = run_ffmpeg_output(path, &["-hide_banner", "-filters"]);
     let filters = match filters {
         Ok(output) if output.status.success() => format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr)),
         _ => return Some("FFmpeg không đọc được danh sách filter.".to_string()),
     };
-    let encoders = Command::new(path).args(["-hide_banner", "-encoders"]).output();
+    let encoders = run_ffmpeg_output(path, &["-hide_banner", "-encoders"]);
     let encoders = match encoders {
         Ok(output) if output.status.success() => format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr)),
         _ => return Some("FFmpeg không đọc được danh sách encoder.".to_string()),
@@ -443,93 +450,60 @@ fn app_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
 
-fn probe_duration(ffmpeg: &Path, audio: &Path) -> Result<f64, String> {
-    let output = Command::new(ffmpeg)
-        .args(["-hide_banner", "-nostdin", "-i"])
-        .arg(audio)
-        .output()
-        .map_err(|error| format!("Không đọc được file âm thanh: {error}"))?;
-    let diagnostics = String::from_utf8_lossy(&output.stderr);
-    for line in diagnostics.lines() {
-        if let Some(start) = line.find("Duration: ") {
-            let value = line[start + 10..].split(',').next().unwrap_or("").trim();
-            let mut pieces = value.split(':');
-            let hours = pieces.next().and_then(|part| part.parse::<f64>().ok());
-            let minutes = pieces.next().and_then(|part| part.parse::<f64>().ok());
-            let seconds = pieces.next().and_then(|part| part.parse::<f64>().ok());
-            if let (Some(hours), Some(minutes), Some(seconds)) = (hours, minutes, seconds) {
-                let duration = hours * 3600.0 + minutes * 60.0 + seconds;
-                if duration.is_finite() && duration > 0.0 {
-                    return Ok(duration);
-                }
-            }
-        }
-    }
-    let detail = diagnostics.lines().last().unwrap_or("Không tìm thấy thời lượng.").trim();
-    Err(format!("Không đọc được thời lượng âm thanh. {detail}"))
+#[derive(Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct StartRenderRequest {
+    background_kind: render::BackgroundKind,
+    background_path: String,
+    audio_path: String,
+    output_path: String,
+    style: String,
+    output_format: String,
+    wave_position: String,
+    wave_scale: u8,
+    duration_mode: render::DurationMode,
+    short_video_mode: render::ShortVideoMode,
+    start_delay_sec: f64,
+    end_delay_sec: f64,
+    keep_video_audio: bool,
+    performance_mode: render::PerformanceMode,
 }
 
-fn output_args(
-    style: &str,
-    output_format: &str,
-    wave_position: &str,
-    wave_scale: u8,
-    duration: f64,
-    image: &Path,
-    audio: &Path,
-    temp: &Path,
-) -> Result<Vec<std::ffi::OsString>, String> {
-    let (width, height) = match output_format {
-        "portrait" => (1080_u32, 1920_u32),
-        "landscape" => (1920_u32, 1080_u32),
-        _ => return Err("Khổ video không hợp lệ.".to_string()),
-    };
-    if !(25..=100).contains(&wave_scale) {
-        return Err("Kích thước sóng phải nằm trong khoảng 25–100%".to_string());
+fn require_ready_ffmpeg(app: &AppHandle) -> Result<PathBuf, String> {
+    let ffmpeg = locate_ffmpeg(app)
+        .ok_or_else(|| "Chưa tìm thấy FFmpeg. Cài FFmpeg 6 trở lên rồi mở lại ứng dụng.".to_string())?;
+    if let Some(problem) = ffmpeg_problem(&ffmpeg) {
+        if !problem.starts_with("ready:") {
+            return Err(problem);
+        }
     }
-    let scale_percent = u32::from(wave_scale);
-    let wave_width = (width * 8 / 9 * scale_percent / 100).max(2);
-    let base_wave_height = match style {
-        "minimal" | "balanced" => 144_u32,
-        "spectrum" => 176_u32,
-        _ => return Err("Kiểu sóng không hợp lệ.".to_string()),
-    };
-    let wave_height = (base_wave_height * height / 1920 * scale_percent / 100).max(2);
-    let wave_filter = match style {
-        "minimal" => format!("[1:a]aformat=channel_layouts=mono,showwaves=s={wave_width}x{wave_height}:mode=line:rate=30:colors=0x75E8E1:scale=sqrt:draw=full,format=rgba,colorkey=0x000000:0.07:0.0[wave]"),
-        "balanced" => format!("[1:a]aformat=channel_layouts=mono,showwaves=s={wave_width}x{wave_height}:mode=cline:rate=30:colors=0xFFFFFF:scale=sqrt:draw=full,format=rgba,colorkey=0x000000:0.07:0.0[wave]"),
-        "spectrum" => format!("[1:a]aformat=channel_layouts=stereo,showfreqs=s={wave_width}x{wave_height}:mode=bar:ascale=log:fscale=log:win_size=2048:rate=30:colors=0xFF799A,format=rgba,colorkey=0x000000:0.07:0.0[wave]"),
-        _ => unreachable!("Visualizer style was validated above"),
-    };
-    let (overlay_x, overlay_y) = match wave_position {
-        "top-left" => ("W*0.0555", "H*0.05"),
-        "top-center" => ("(W-w)/2", "H*0.05"),
-        "top-right" => ("W-w-W*0.0555", "H*0.05"),
-        "center-left" => ("W*0.0555", "(H-h)/2"),
-        "center" => ("(W-w)/2", "(H-h)/2"),
-        "center-right" => ("W-w-W*0.0555", "(H-h)/2"),
-        "bottom-left" => ("W*0.0555", "H-h-H*0.05"),
-        "bottom-center" => ("(W-w)/2", "H-h-H*0.05"),
-        "bottom-right" => ("W-w-W*0.0555", "H-h-H*0.05"),
-        _ => return Err("Vị trí sóng âm không hợp lệ.".to_string()),
-    };
-    let graph = format!(
-        "[0:v]scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},setsar=1[bg];{wave_filter};[bg][wave]overlay=x={overlay_x}:y={overlay_y}:shortest=1:format=auto,format=yuv420p[v]"
-    );
-    let duration_text = format!("{duration:.3}");
-    let mut args = vec![
-        "-hide_banner".into(), "-loglevel".into(), "error".into(), "-nostdin".into(), "-y".into(),
-        "-loop".into(), "1".into(), "-framerate".into(), "30".into(), "-i".into(), image.as_os_str().to_owned(),
-        "-i".into(), audio.as_os_str().to_owned(), "-filter_complex".into(), graph.into(),
-        "-map".into(), "[v]".into(), "-map".into(), "1:a:0".into(),
-        "-c:v".into(), "libx264".into(), "-preset".into(), "veryfast".into(), "-crf".into(), "21".into(),
-        "-r".into(), "30".into(), "-pix_fmt".into(), "yuv420p".into(),
-        "-af".into(), "aresample=async=1:first_pts=0".into(), "-c:a".into(), "aac".into(), "-b:a".into(), "192k".into(),
-        "-t".into(), duration_text.into(), "-shortest".into(), "-movflags".into(), "+faststart".into(),
-        "-progress".into(), "pipe:1".into(), "-nostats".into(), "-stats_period".into(), "0.5".into(),
-    ];
-    args.push(temp.as_os_str().to_owned());
-    Ok(args)
+    Ok(ffmpeg)
+}
+
+#[tauri::command]
+async fn probe_media_info(app: AppHandle, path: String) -> Result<render::MediaInfo, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let canonical = PathBuf::from(path)
+            .canonicalize()
+            .map_err(|error| format!("Không tìm thấy file media: {error}"))?;
+        if !canonical.is_file() {
+            return Err("Đường dẫn media không phải file hợp lệ.".to_string());
+        }
+        let ffmpeg = require_ready_ffmpeg(&app)?;
+        render::probe_media(&ffmpeg, &canonical)
+    })
+    .await
+    .map_err(|_| "Tác vụ đọc thông tin media bị gián đoạn.".to_string())?
+}
+
+#[tauri::command]
+async fn render_capabilities(app: AppHandle) -> Result<render::RenderCapabilities, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let ffmpeg = require_ready_ffmpeg(&app)?;
+        Ok(render::get_render_capabilities(&ffmpeg))
+    })
+    .await
+    .map_err(|_| "Tác vụ kiểm tra khả năng tăng tốc phần cứng bị gián đoạn.".to_string())?
 }
 
 fn emit(app: &AppHandle, event: RenderEvent) {
@@ -555,148 +529,355 @@ fn replace_output(temp: &Path, output: &Path, job_id: &str) -> Result<(), String
     Ok(())
 }
 
-#[tauri::command]
-fn start_render(
-    app: AppHandle,
-    state: State<'_, ActiveJobs>,
-    image_path: String,
-    audio_path: String,
-    output_path: String,
-    style: String,
-    output_format: String,
-    wave_position: String,
-    wave_scale: u8,
-) -> Result<String, String> {
-    {
-        let jobs = state.0.lock().map_err(|_| "Không đọc được trạng thái tác vụ.".to_string())?;
-        if !jobs.is_empty() {
-            return Err("Đang có một video khác được xuất.".to_string());
-        }
-    }
-
-    let image = PathBuf::from(image_path).canonicalize().map_err(|error| format!("Không tìm thấy ảnh: {error}"))?;
-    let audio = PathBuf::from(audio_path).canonicalize().map_err(|error| format!("Không tìm thấy âm thanh: {error}"))?;
-    if !image.is_file() || !audio.is_file() {
-        return Err("Ảnh và âm thanh phải là file hợp lệ.".to_string());
-    }
-    let output = PathBuf::from(output_path);
-    if output.extension().and_then(|extension| extension.to_str()).map(|extension| extension.to_lowercase()) != Some("mp4".to_string()) {
-        return Err("Hãy chọn tên file đầu ra có đuôi .mp4.".to_string());
-    }
-    let parent = output.parent().filter(|path| !path.as_os_str().is_empty()).unwrap_or(Path::new("."));
-    if !parent.is_dir() {
-        return Err("Thư mục lưu video không còn tồn tại.".to_string());
-    }
-    let output = if output.is_absolute() { output } else { std::env::current_dir().map_err(|error| error.to_string())?.join(output) };
-    let ffmpeg = locate_ffmpeg(&app).ok_or_else(|| "Chưa tìm thấy FFmpeg. Cài FFmpeg 6 trở lên rồi mở lại ứng dụng.".to_string())?;
-    if let Some(problem) = ffmpeg_problem(&ffmpeg) {
-        if !problem.starts_with("ready:") {
-            return Err(problem);
-        }
-    }
-    let duration = probe_duration(&ffmpeg, &audio)?;
-    let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
-    let job_id = format!("{:x}", nanos);
-    let temp = partial_path(&output, &job_id, "rendering");
-    let args = output_args(&style, &output_format, &wave_position, wave_scale, duration, &image, &audio, &temp)?;
-
-    let mut child = Command::new(&ffmpeg)
+fn spawn_ffmpeg_render(
+    ffmpeg: &Path,
+    args: &[std::ffi::OsString],
+) -> Result<(Child, ChildStdout, ChildStderr), String> {
+    let mut cmd = Command::new(ffmpeg);
+    render::configure_ffmpeg_command(&mut cmd);
+    let mut child = cmd
         .args(args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|error| format!("Không khởi động được FFmpeg: {error}"))?;
-    let stdout = child.stdout.take().ok_or_else(|| "Không đọc được tiến độ FFmpeg.".to_string())?;
-    let stderr = child.stderr.take().ok_or_else(|| "Không đọc được thông báo FFmpeg.".to_string())?;
-    let process = Arc::new(Mutex::new(ManagedProcess { child, cancelled: false }));
-    {
-        let mut jobs = state.0.lock().map_err(|_| "Không lưu được tác vụ xuất video.".to_string())?;
-        jobs.insert(job_id.clone(), process.clone());
-    }
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "Không đọc được tiến độ FFmpeg.".to_string())?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| "Không đọc được thông báo FFmpeg.".to_string())?;
+    Ok((child, stdout, stderr))
+}
 
-    let app_handle = app.clone();
-    let jobs = state.0.clone();
-    let job_key = job_id.clone();
-    let output_string = output.to_string_lossy().to_string();
-    thread::spawn(move || {
-        let stderr_text = Arc::new(Mutex::new(String::new()));
-        let stderr_capture = stderr_text.clone();
-        let stderr_thread = thread::spawn(move || {
-            let mut reader = BufReader::new(stderr);
-            let mut chunk = [0_u8; 4096];
-            loop {
-                match reader.read(&mut chunk) {
-                    Ok(0) | Err(_) => break,
-                    Ok(count) => {
-                        if let Ok(mut text) = stderr_capture.lock() {
-                            text.push_str(&String::from_utf8_lossy(&chunk[..count]));
-                            if text.len() > 24_000 {
-                                let remove = text.len() - 24_000;
-                                text.drain(..remove);
-                            }
+fn monitor_ffmpeg_streams(
+    app_handle: &AppHandle,
+    job_key: &str,
+    duration: f64,
+    encoder_label: &str,
+    stdout: ChildStdout,
+    stderr: ChildStderr,
+    process: &Arc<Mutex<ManagedProcess>>,
+) -> Result<(std::process::ExitStatus, bool, String), String> {
+    let stderr_text = Arc::new(Mutex::new(String::new()));
+    let stderr_capture = stderr_text.clone();
+    let stderr_thread = thread::spawn(move || {
+        let mut reader = BufReader::new(stderr);
+        let mut chunk = [0_u8; 4096];
+        loop {
+            match reader.read(&mut chunk) {
+                Ok(0) | Err(_) => break,
+                Ok(count) => {
+                    if let Ok(mut text) = stderr_capture.lock() {
+                        text.push_str(&String::from_utf8_lossy(&chunk[..count]));
+                        if text.len() > 24_000 {
+                            let remove = text.len() - 24_000;
+                            text.drain(..remove);
                         }
                     }
                 }
             }
-        });
-
-        let duration_us = (duration * 1_000_000.0) as u64;
-        let mut current_us = 0_u64;
-        for line in BufReader::new(stdout).lines().map_while(Result::ok) {
-            if let Some(value) = line.strip_prefix("out_time_us=") {
-                current_us = value.parse::<u64>().unwrap_or(current_us);
-            }
-            if line == "progress=continue" || line == "progress=end" {
-                let percent = ((current_us as f64 / duration_us as f64) * 100.0).clamp(0.0, 99.0) as f32;
-                emit(&app_handle, RenderEvent {
-                    job_id: job_key.clone(), status: "running".to_string(), percent,
-                    message: format!("Đang ghép video · {}%", percent.round() as u32), output_path: None,
-                });
-            }
-        }
-
-        let (status, cancelled) = match process.lock() {
-            Ok(mut managed) => (managed.child.wait(), managed.cancelled),
-            Err(_) => (Err(std::io::Error::other("process lock poisoned")), false),
-        };
-        let _ = stderr_thread.join();
-        let result = match status {
-            Ok(status) if status.success() && !cancelled => replace_output(&temp, &output, &job_key)
-                .map(|_| ("completed", 100.0_f32, "Video đã xuất xong.".to_string())),
-            Ok(_) if cancelled => {
-                let _ = fs::remove_file(&temp);
-                Ok(("cancelled", 0.0_f32, "Đã hủy xuất video.".to_string()))
-            }
-            Ok(_) => {
-                let _ = fs::remove_file(&temp);
-                let detail = stderr_text.lock().map(|text| text.trim().to_string()).unwrap_or_default();
-                Err(if detail.is_empty() { "FFmpeg không thể xuất video. Hãy kiểm tra định dạng file đầu vào.".to_string() } else { detail })
-            }
-            Err(error) => {
-                let _ = fs::remove_file(&temp);
-                Err(format!("Không theo dõi được tiến trình FFmpeg: {error}"))
-            }
-        };
-
-        if matches!(&result, Ok(("completed", _, _))) {
-            publishing::register_export(&app_handle, &output, &audio);
-        }
-        // Release the job before notifying the UI so an immediate next render can start.
-        if let Ok(mut active) = jobs.lock() {
-            active.remove(&job_key);
-        }
-        match result {
-            Ok((status, percent, message)) => emit(&app_handle, RenderEvent {
-                job_id: job_key.clone(), status: status.to_string(), percent, message,
-                output_path: if status == "completed" { Some(output_string) } else { None },
-            }),
-            Err(message) => emit(&app_handle, RenderEvent {
-                job_id: job_key.clone(), status: "error".to_string(), percent: 0.0, message, output_path: None,
-            }),
         }
     });
 
-    Ok(job_id)
+    let duration_us = (duration * 1_000_000.0).max(1.0) as u64;
+    let mut current_us = 0_u64;
+    for line in BufReader::new(stdout).lines().map_while(Result::ok) {
+        if let Some(value) = line.strip_prefix("out_time_us=") {
+            current_us = value.parse::<u64>().unwrap_or(current_us);
+        }
+        if line == "progress=continue" || line == "progress=end" {
+            let percent = ((current_us as f64 / duration_us as f64) * 100.0).clamp(0.0, 99.0) as f32;
+            emit(
+                app_handle,
+                RenderEvent {
+                    job_id: job_key.to_string(),
+                    status: "running".to_string(),
+                    percent,
+                    message: format!("Đang ghép video ({encoder_label}) · {}%", percent.round() as u32),
+                    output_path: None,
+                },
+            );
+        }
+    }
+
+    let (status, cancelled) = match process.lock() {
+        Ok(mut managed) => (managed.child.wait(), managed.cancelled),
+        Err(_) => (Err(std::io::Error::other("process lock poisoned")), false),
+    };
+    let _ = stderr_thread.join();
+    let detail = stderr_text
+        .lock()
+        .map(|text| text.trim().to_string())
+        .unwrap_or_default();
+    let status = status.map_err(|error| format!("Không theo dõi được tiến trình FFmpeg: {error}"))?;
+    Ok((status, cancelled, detail))
+}
+
+#[tauri::command]
+async fn start_render(
+    app: AppHandle,
+    state: State<'_, ActiveJobs>,
+    request: StartRenderRequest,
+) -> Result<String, String> {
+    {
+        let jobs = state
+            .0
+            .lock()
+            .map_err(|_| "Không đọc được trạng thái tác vụ.".to_string())?;
+        if !jobs.is_empty() {
+            return Err("Đang có một video khác được xuất.".to_string());
+        }
+    }
+
+    let active_jobs = state.0.clone();
+    let app_for_prepare = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let background = PathBuf::from(&request.background_path)
+            .canonicalize()
+            .map_err(|error| format!("Không tìm thấy file nền: {error}"))?;
+        let audio = PathBuf::from(&request.audio_path)
+            .canonicalize()
+            .map_err(|error| format!("Không tìm thấy âm thanh: {error}"))?;
+        if !background.is_file() || !audio.is_file() {
+            return Err("File nền và âm thanh phải là file hợp lệ.".to_string());
+        }
+
+        let output = PathBuf::from(&request.output_path);
+        if output
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .map(|extension| extension.to_lowercase())
+            != Some("mp4".to_string())
+        {
+            return Err("Hãy chọn tên file đầu ra có đuôi .mp4.".to_string());
+        }
+        let parent = output
+            .parent()
+            .filter(|path| !path.as_os_str().is_empty())
+            .unwrap_or(Path::new("."));
+        if !parent.is_dir() {
+            return Err("Thư mục lưu video không còn tồn tại.".to_string());
+        }
+        let output = if output.is_absolute() {
+            output
+        } else {
+            std::env::current_dir()
+                .map_err(|error| error.to_string())?
+                .join(output)
+        };
+
+        let ffmpeg = require_ready_ffmpeg(&app_for_prepare)?;
+        let audio_info = render::probe_media(&ffmpeg, &audio)?;
+        let video_info = match request.background_kind {
+            render::BackgroundKind::Image => None,
+            render::BackgroundKind::Video => Some(render::probe_media(&ffmpeg, &background)?),
+        };
+
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        let job_id = format!("{:x}", nanos);
+        let temp = partial_path(&output, &job_id, "rendering");
+
+        let primary_encoder = render::resolve_encoder(&ffmpeg, request.performance_mode);
+        let plan = render::build_render_plan(
+            &render::RenderSpec {
+                background_kind: request.background_kind,
+                background_path: &background,
+                audio_path: &audio,
+                temp_output: &temp,
+                style: &request.style,
+                output_format: &request.output_format,
+                wave_position: &request.wave_position,
+                wave_scale: request.wave_scale,
+                duration_mode: request.duration_mode,
+                short_video_mode: request.short_video_mode,
+                start_delay_sec: request.start_delay_sec,
+                end_delay_sec: request.end_delay_sec,
+                keep_video_audio: request.keep_video_audio,
+                video_info: video_info.as_ref(),
+                audio_info: &audio_info,
+            },
+            primary_encoder,
+        )?;
+
+        let fallback_plan = if request.performance_mode == render::PerformanceMode::Auto
+            && primary_encoder.is_hardware()
+        {
+            Some(render::build_render_plan(
+                &render::RenderSpec {
+                    background_kind: request.background_kind,
+                    background_path: &background,
+                    audio_path: &audio,
+                    temp_output: &temp,
+                    style: &request.style,
+                    output_format: &request.output_format,
+                    wave_position: &request.wave_position,
+                    wave_scale: request.wave_scale,
+                    duration_mode: request.duration_mode,
+                    short_video_mode: request.short_video_mode,
+                    start_delay_sec: request.start_delay_sec,
+                    end_delay_sec: request.end_delay_sec,
+                    keep_video_audio: request.keep_video_audio,
+                    video_info: video_info.as_ref(),
+                    audio_info: &audio_info,
+                },
+                render::VideoEncoder::Libx264Fast,
+            )?)
+        } else {
+            None
+        };
+
+        let (child, stdout, stderr) = spawn_ffmpeg_render(&ffmpeg, &plan.args)?;
+        let process = Arc::new(Mutex::new(ManagedProcess {
+            child,
+            cancelled: false,
+        }));
+        {
+            let mut jobs = active_jobs
+                .lock()
+                .map_err(|_| "Không lưu được tác vụ xuất video.".to_string())?;
+            if !jobs.is_empty() {
+                drop(jobs);
+                if let Ok(mut managed) = process.lock() {
+                    let _ = managed.child.kill();
+                }
+                return Err("Đang có một video khác được xuất.".to_string());
+            }
+            jobs.insert(job_id.clone(), process.clone());
+        }
+
+        let app_handle = app_for_prepare;
+        let jobs = active_jobs;
+        let job_key = job_id.clone();
+        let output_string = output.to_string_lossy().to_string();
+
+        thread::spawn(move || {
+            let mut attempt_result = monitor_ffmpeg_streams(
+                &app_handle,
+                &job_key,
+                plan.target_duration,
+                plan.encoder.label(),
+                stdout,
+                stderr,
+                &process,
+            );
+
+            if let (Ok((status, false, _)), Some(fallback)) = (&attempt_result, fallback_plan) {
+                if !status.success() {
+                    let _ = fs::remove_file(&temp);
+                    emit(
+                        &app_handle,
+                        RenderEvent {
+                            job_id: job_key.clone(),
+                            status: "running".to_string(),
+                            percent: 0.0,
+                            message: "GPU không tương thích nguồn này · chuyển sang CPU…".to_string(),
+                            output_path: None,
+                        },
+                    );
+                    let spawned = {
+                        match process.lock() {
+                            Ok(mut managed) if !managed.cancelled => {
+                                match spawn_ffmpeg_render(&ffmpeg, &fallback.args) {
+                                    Ok((new_child, new_out, new_err)) => {
+                                        managed.child = new_child;
+                                        Ok(Some((new_out, new_err)))
+                                    }
+                                    Err(err) => Err(err),
+                                }
+                            }
+                            Ok(_) => Ok(None),
+                            Err(_) => Err("process lock poisoned".to_string()),
+                        }
+                    };
+                    match spawned {
+                        Ok(Some((new_out, new_err))) => {
+                            attempt_result = monitor_ffmpeg_streams(
+                                &app_handle,
+                                &job_key,
+                                fallback.target_duration,
+                                fallback.encoder.label(),
+                                new_out,
+                                new_err,
+                                &process,
+                            );
+                        }
+                        Ok(None) => {
+                            if let Ok((st, _, d)) = attempt_result {
+                                attempt_result = Ok((st, true, d));
+                            }
+                        }
+                        Err(err) => attempt_result = Err(err),
+                    }
+                }
+            }
+
+            let final_result = match attempt_result {
+                Ok((status, cancelled, _)) if status.success() && !cancelled => {
+                    replace_output(&temp, &output, &job_key)
+                        .map(|_| ("completed", 100.0_f32, "Video đã xuất xong.".to_string()))
+                }
+                Ok((_, true, _)) => {
+                    let _ = fs::remove_file(&temp);
+                    Ok(("cancelled", 0.0_f32, "Đã hủy xuất video.".to_string()))
+                }
+                Ok((_, false, detail)) => {
+                    let _ = fs::remove_file(&temp);
+                    Err(if detail.is_empty() {
+                        "FFmpeg không thể xuất video. Hãy kiểm tra định dạng file đầu vào.".to_string()
+                    } else {
+                        detail
+                    })
+                }
+                Err(error) => {
+                    let _ = fs::remove_file(&temp);
+                    Err(error)
+                }
+            };
+
+            if matches!(&final_result, Ok(("completed", _, _))) {
+                publishing::register_export(&app_handle, &output, &audio);
+            }
+            if let Ok(mut active) = jobs.lock() {
+                active.remove(&job_key);
+            }
+            match final_result {
+                Ok((status, percent, message)) => emit(
+                    &app_handle,
+                    RenderEvent {
+                        job_id: job_key.clone(),
+                        status: status.to_string(),
+                        percent,
+                        message,
+                        output_path: if status == "completed" {
+                            Some(output_string)
+                        } else {
+                            None
+                        },
+                    },
+                ),
+                Err(message) => emit(
+                    &app_handle,
+                    RenderEvent {
+                        job_id: job_key.clone(),
+                        status: "error".to_string(),
+                        percent: 0.0,
+                        message,
+                        output_path: None,
+                    },
+                ),
+            }
+        });
+
+        Ok(job_id)
+    })
+    .await
+    .map_err(|_| "Tác vụ chuẩn bị xuất video bị gián đoạn.".to_string())?
 }
 
 #[tauri::command]
@@ -720,9 +901,22 @@ pub fn run() {
         .manage(ActiveJobs::default())
         .manage(EngineInstallState::default())
         .manage(publishing::PublishingState::default())
-        .invoke_handler(tauri::generate_handler![app_version, ffmpeg_status, install_ffmpeg, cancel_ffmpeg_install, start_render, cancel_render,
-            publishing::publishing_key_status, publishing::publishing_audio_support, publishing::save_publishing_key, publishing::delete_publishing_key,
-            publishing::generate_publishing_content, publishing::open_publishing_output])
+        .invoke_handler(tauri::generate_handler![
+            app_version,
+            ffmpeg_status,
+            install_ffmpeg,
+            cancel_ffmpeg_install,
+            probe_media_info,
+            render_capabilities,
+            start_render,
+            cancel_render,
+            publishing::publishing_key_status,
+            publishing::publishing_audio_support,
+            publishing::save_publishing_key,
+            publishing::delete_publishing_key,
+            publishing::generate_publishing_content,
+            publishing::open_publishing_output
+        ])
         .run(tauri::generate_context!())
         .expect("Wavely could not start");
 }

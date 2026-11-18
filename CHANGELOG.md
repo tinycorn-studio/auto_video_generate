@@ -4,6 +4,18 @@ Mọi thay đổi đáng chú ý của Wavely được ghi tại đây. Định 
 
 ## [Unreleased]
 
+### Added
+
+- Hỗ trợ chọn **Video nền** (`MP4`, `MOV`, `MKV`, `WebM`, `M4V`, `AVI`) bên cạnh **Ảnh nền**; xem trước video lặp tắt tiếng trực tiếp trong khung xem trước.
+- Thêm tùy chọn **Delay đầu video** và **Delay cuối video** (0–300 giây) so với đoạn ghi âm nói, dùng cho cả ảnh nền và video nền.
+- Thêm hai chế độ khớp độ dài khi dùng video nền: **Fit theo âm thanh** (kèm tùy chọn **Lặp lại**, **Giữ khung cuối**, hoặc **Kéo chậm** khi video ngắn hơn) và **Fit theo độ dài video** (giữ nguyên độ dài video nền kèm tóm tắt timeline và cảnh báo).
+- Thêm tùy chọn giữ tiếng gốc của video nền để trộn nhẹ dưới giọng nói (tự kiểm tra video có track âm thanh hay không).
+- Thêm lựa chọn **Tối ưu khi xuất**: tự động dò encoder phần cứng (`h264_nvenc`, `h264_qsv`, `h264_amf`, `h264_videotoolbox`) với fallback tự động về CPU, cùng các chế độ `CPU nhanh` và `CPU file gọn`.
+
+### Changed
+
+- Tối ưu pipeline FFmpeg cho mọi video đầu vào: chuẩn hóa `fps=30` sớm trước khi resize/overlay, bỏ qua `scale`/`crop` khi kích thước và tỷ lệ đã khớp đầu ra, dùng `flags=bilinear`, chuyển `yuv420p` sớm, bỏ track ảnh bìa ẩn (`-vn`) trên audio, tính tọa độ overlay một lần (`eval=init`), và chạy FFmpeg ở mức ưu tiên thấp trên Windows để tránh giật máy khi xuất video.
+
 ## [0.5.0] - 2026-10-27
 
 ### Fixed
